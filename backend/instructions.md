@@ -7,10 +7,37 @@ This document explains how to run the OutSource Python backend API and MySQL dat
 - Docker Desktop installed and running
 - Docker Compose installed (comes with Docker Desktop)
 
+## Environment Setup
+
+Before running the application, you need to set up your environment variables:
+
+1. **Copy the environment template**:
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
+
+2. **Edit the `.env` file** with your desired credentials:
+   ```
+   MYSQL_ROOT_PASSWORD=your_secure_root_password
+   MYSQL_DATABASE=outsource_db
+   MYSQL_USER=your_db_user
+   MYSQL_PASSWORD=your_secure_password
+   DATABASE_URL=mysql+pymysql://your_db_user:your_secure_password@db:3306/outsource_db
+   API_PORT=8000
+   MYSQL_PORT=3306
+   ```
+
+   **IMPORTANT**:
+   - The `.env` file is git-ignored and will not be committed to version control
+   - Never commit passwords or secrets to git
+   - For production, use strong passwords and consider using a secrets manager
+   - The default `.env` file created for you has basic development credentials
+
 ## Project Structure
 
 ```
-python-backend/
+backend/
 ├── app/
 │   ├── controllers/      # API endpoint controllers
 │   ├── services/         # Business logic layer
@@ -19,9 +46,12 @@ python-backend/
 │   ├── dtos/             # Data Transfer Objects (Pydantic models)
 │   ├── database.py       # Database configuration
 │   └── main.py           # FastAPI application entry point
+├── .env                  # Environment variables (git-ignored)
+├── .env.example          # Environment template
 ├── Dockerfile            # Docker image for Python app
 ├── docker-compose.yml    # Orchestration for app and MySQL
-└── requirements.txt      # Python dependencies
+├── requirements.txt      # Python dependencies
+└── instructions.md       # This file
 ```
 
 ## Running the Application
@@ -30,9 +60,9 @@ python-backend/
 
 This will start both the MySQL database and the Python API in separate containers.
 
-1. Navigate to the python-backend directory:
+1. Navigate to the backend directory:
    ```bash
-   cd python-backend
+   cd backend
    ```
 
 2. Build and start the containers:
@@ -79,16 +109,16 @@ docker run -d \
 
 1. Build the Docker image:
    ```bash
-   cd python-backend
+   cd backend
    docker build -t outsource-api .
    ```
 
-2. Run the container:
+2. Run the container (using environment variables from your .env file):
    ```bash
    docker run -d \
      --name outsource_api \
      -p 8000:8000 \
-     -e DATABASE_URL=mysql+pymysql://user:password@outsource_mysql:3306/outsource_db \
+     --env-file .env \
      --link outsource_mysql:db \
      outsource-api
    ```
@@ -265,17 +295,22 @@ You can use GUI database tools to visually explore and manage your MySQL databas
 
 #### Connection Parameters Summary
 
-Use these credentials for any MySQL client:
+Use these credentials for any MySQL client (values from your `.env` file):
 
-| Parameter | Value |
-|-----------|-------|
-| Host | `localhost` or `127.0.0.1` |
-| Port | `3306` |
-| Database | `outsource_db` |
-| Username | `user` |
-| Password | `password` |
-| Root Username | `root` |
-| Root Password | `rootpassword` |
+| Parameter | Value | .env Variable |
+|-----------|-------|---------------|
+| Host | `localhost` or `127.0.0.1` | N/A |
+| Port | `3306` (default) | `MYSQL_PORT` |
+| Database | `outsource_db` (default) | `MYSQL_DATABASE` |
+| Username | Value from .env | `MYSQL_USER` |
+| Password | Value from .env | `MYSQL_PASSWORD` |
+| Root Username | `root` | N/A |
+| Root Password | Value from .env | `MYSQL_ROOT_PASSWORD` |
+
+**Note**: The actual values depend on your `.env` file configuration. The default development setup uses:
+- Username: `user`
+- Password: `password`
+- Root Password: `rootpassword`
 
 #### Common GUI Operations
 
@@ -369,16 +404,26 @@ docker-compose up -d --build
 
 ## Environment Variables
 
-The following environment variables can be configured in `docker-compose.yml`:
+All environment variables are configured in the `.env` file (which is git-ignored for security).
 
-### MySQL Container
-- `MYSQL_ROOT_PASSWORD`: Root user password
-- `MYSQL_DATABASE`: Database name
+### Available Variables
+
+#### MySQL Container
+- `MYSQL_ROOT_PASSWORD`: Root user password (change for production!)
+- `MYSQL_DATABASE`: Database name (default: outsource_db)
 - `MYSQL_USER`: Application database user
-- `MYSQL_PASSWORD`: Application user password
+- `MYSQL_PASSWORD`: Application user password (change for production!)
 
-### Python App Container
-- `DATABASE_URL`: SQLAlchemy connection string
+#### Python App Container
+- `DATABASE_URL`: SQLAlchemy connection string (must match MySQL credentials)
+- `API_PORT`: Port for the FastAPI application (default: 8000)
+- `MYSQL_PORT`: Port for MySQL database (default: 3306)
+
+### Configuration Files
+
+- `.env` - Your actual environment variables (git-ignored, created from .env.example)
+- `.env.example` - Template file with placeholder values (committed to git)
+- When setting up a new environment, copy `.env.example` to `.env` and update the values
 
 ## Development
 
