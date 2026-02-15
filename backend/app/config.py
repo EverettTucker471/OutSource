@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Database Configuration (inherited from existing env vars)
     DATABASE_URL: str = "mysql+pymysql://user:password@db:3306/outsource_db"
 
+    # Google Gemini API Configuration
+    GEMINI_API_KEY: str
+
     class Config:
         env_file = ".env"
         case_sensitive = True

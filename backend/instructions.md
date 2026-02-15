@@ -31,12 +31,19 @@ Before running the application, you need to set up your environment variables:
    JWT_SECRET_KEY=your-secret-key-generate-with-openssl-rand-hex-32
    JWT_ALGORITHM=HS256
    JWT_ACCESS_TOKEN_EXPIRE_HOURS=24
+   # Google Gemini API Configuration
+   GEMINI_API_KEY=your-gemini-api-key
    ```
 
    **Generate a secure JWT secret key**:
    ```bash
    openssl rand -hex 32
    ```
+
+   **Get a Google Gemini API Key**:
+   1. Go to https://aistudio.google.com/app/apikey
+   2. Create a new API key
+   3. Copy the key and add it to your `.env` file as `GEMINI_API_KEY`
 
    **IMPORTANT**:
    - The `.env` file is git-ignored and will not be committed to version control
@@ -177,8 +184,9 @@ The JWT token payload contains:
 ### Protected vs Unprotected Endpoints
 
 **Unprotected** (no authentication required):
-- `POST /login` - Authenticate and get token
-- `POST /logout` - Logout (client-side)
+- `POST /auth/signup` - Register a new user and get token
+- `POST /auth/login` - Authenticate and get token
+- `POST /auth/logout` - Logout (client-side)
 - `GET /health` - Health check
 - `GET /` - Welcome message
 
@@ -192,11 +200,32 @@ The JWT token payload contains:
 
 ### Authentication Endpoints
 
+#### Sign Up
+Register a new user account and receive a JWT token.
+
+```bash
+POST /auth/signup
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "password": "securepassword123",
+  "name": "John Doe",
+  "preferences": ["hiking", "photography", "outdoor sports"]
+}
+
+# Response (201 Created):
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
 #### Login
 Get a JWT token by authenticating with username and password.
 
 ```bash
-POST /login
+POST /auth/login
 Content-Type: application/json
 
 {
@@ -215,7 +244,7 @@ Content-Type: application/json
 Logout endpoint (client should discard the token).
 
 ```bash
-POST /logout
+POST /auth/logout
 
 # Response:
 {
@@ -299,15 +328,133 @@ Authorization: Bearer <your-jwt-token>
 ]
 ```
 
+### Recommendation Endpoints
+
+All recommendation endpoints require authentication via JWT token in the `Authorization` header. These endpoints use Google Gemini AI to generate personalized activity recommendations based on user preferences and weather conditions.
+
+#### Get User Recommendations
+Get activity recommendations for the current authenticated user. Returns two different activity suggestions based on user preferences and weather conditions.
+
+```bash
+POST /recommendations
+Authorization: Bearer <your-jwt-token>
+
+# Response (200 OK):
+{
+  "recommendations": [
+    {
+      "activity_name": "Sunset Photography Walk",
+      "activity_description": "The pleasant 75°F weather with low wind and clear skies creates ideal conditions for capturing golden hour shots at a local park or scenic viewpoint."
+    },
+    {
+      "activity_name": "Outdoor Cycling",
+      "activity_description": "Perfect temperature and calm conditions make this an excellent time for a leisurely bike ride through nature trails."
+    }
+  ]
+}
+```
+
+#### Get Circle Recommendations
+Get activity recommendations for a circle by combining all members' preferences. Returns two different activity suggestions that work well for group activities.
+
+```bash
+POST /recommendations/{circle_id}
+Authorization: Bearer <your-jwt-token>
+
+# Example: Get recommendations for circle with ID 1
+POST /recommendations/1
+Authorization: Bearer <your-jwt-token>
+
+# Response (200 OK):
+{
+  "recommendations": [
+    {
+      "activity_name": "Group Picnic and Frisbee",
+      "activity_description": "The comfortable 75°F temperature with low wind and no rain makes this perfect for an outdoor group activity with lawn games."
+    },
+    {
+      "activity_name": "Nature Hike",
+      "activity_description": "Ideal weather for a group trek through local trails, combining everyone's interest in outdoor activities and nature."
+    }
+  ]
+}
+```
+
+#### Testing Recommendations via Command Line
+
+1. **First, login to get a JWT token**:
+   ```bash
+   TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username": "testuser", "password": "testpass123"}' \
+     | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+   ```
+
+2. **Update user preferences** (optional, to get better recommendations):
+   ```bash
+   curl -X PUT http://localhost:8000/me \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $TOKEN" \
+     -d '{
+       "preferences": ["hiking", "photography", "outdoor sports", "nature"]
+     }'
+   ```
+
+3. **Get recommendations for yourself**:
+   ```bash
+   curl -X POST http://localhost:8000/recommendations \
+     -H "Authorization: Bearer $TOKEN"
+   ```
+
+4. **Get recommendations for a circle**:
+   ```bash
+   # First, create a circle (or use an existing circle ID)
+   CIRCLE_ID=$(curl -s -X POST http://localhost:8000/circles \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $TOKEN" \
+     -d '{"name": "Weekend Warriors", "public": true}' \
+     | grep -o '"id":[0-9]*' | cut -d':' -f2)
+
+   # Get recommendations for the circle
+   curl -X POST http://localhost:8000/recommendations/$CIRCLE_ID \
+     -H "Authorization: Bearer $TOKEN"
+   ```
+
+**Note**: The recommendation feature currently uses placeholder weather data ("temp 75 F low wind no precipitation"). Weather API integration can be added in the future.
+
+**Response Format**: Each recommendation endpoint returns a JSON object with a `recommendations` array containing exactly two activity suggestions. Each recommendation includes:
+- `activity_name`: The name of the suggested activity
+- `activity_description`: A one-sentence description explaining why this activity is suitable based on the weather and preferences
+
 ## Testing the API
 
 ### Using curl
 
 #### Complete Authentication Flow
 
-1. **Login to get a JWT token**:
+1. **Sign up a new user** (optional - skip if you already have an account):
    ```bash
-   curl -X POST http://localhost:8000/login \
+   curl -X POST http://localhost:8000/auth/signup \
+     -H "Content-Type: application/json" \
+     -d '{
+       "username": "testuser",
+       "password": "testpass123",
+       "name": "Test User",
+       "preferences": ["hiking", "photography", "outdoor sports"]
+     }'
+   ```
+
+   Save the `access_token` from the response:
+   ```json
+   {
+     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzM5NTk5MjAwfQ...",
+     "token_type": "bearer"
+   }
+   ```
+
+2. **Login to get a JWT token** (if you already have an account):
+   ```bash
+   curl -X POST http://localhost:8000/auth/login \
      -H "Content-Type: application/json" \
      -d '{
        "username": "testuser",
@@ -323,12 +470,12 @@ Authorization: Bearer <your-jwt-token>
    }
    ```
 
-2. **Store the token in a variable** (for convenience):
+3. **Store the token in a variable** (for convenience):
    ```bash
    TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
    ```
 
-3. **Create a user** (requires authentication):
+4. **Create a user** (requires authentication):
    ```bash
    curl -X POST http://localhost:8000/users \
      -H "Content-Type: application/json" \
@@ -341,27 +488,27 @@ Authorization: Bearer <your-jwt-token>
      }'
    ```
 
-4. **Get current user**:
+5. **Get current user**:
    ```bash
    curl http://localhost:8000/users/current \
      -H "Authorization: Bearer $TOKEN"
    ```
 
-5. **Get all users**:
+6. **Get all users**:
    ```bash
    curl http://localhost:8000/users \
      -H "Authorization: Bearer $TOKEN"
    ```
 
-6. **Get user by ID**:
+7. **Get user by ID**:
    ```bash
    curl http://localhost:8000/users/1 \
      -H "Authorization: Bearer $TOKEN"
    ```
 
-7. **Logout**:
+8. **Logout**:
    ```bash
-   curl -X POST http://localhost:8000/logout
+   curl -X POST http://localhost:8000/auth/logout
    ```
 
 #### Testing Without Authentication (Should Fail)
@@ -388,12 +535,17 @@ The Swagger UI now includes authentication support.
 1. Open http://localhost:8000/docs in your browser
 2. **Authenticate first**:
    - Click the "Authorize" button (🔒) at the top right
-   - First, login to get a token:
-     - Expand the `POST /login` endpoint
-     - Click "Try it out"
-     - Enter your username and password
-     - Click "Execute"
-     - Copy the `access_token` from the response
+   - First, sign up or login to get a token:
+     - **Sign up**: Expand the `POST /auth/signup` endpoint
+       - Click "Try it out"
+       - Enter username, password, name, and preferences
+       - Click "Execute"
+       - Copy the `access_token` from the response
+     - **Or Login**: Expand the `POST /auth/login` endpoint
+       - Click "Try it out"
+       - Enter your username and password
+       - Click "Execute"
+       - Copy the `access_token` from the response
    - Click "Authorize" again
    - Enter: `Bearer <your-token>` (replace `<your-token>` with the actual token)
    - Click "Authorize"
@@ -778,6 +930,9 @@ All environment variables are configured in the `.env` file (which is git-ignore
 - `JWT_ALGORITHM`: Algorithm for JWT signing (default: HS256)
 - `JWT_ACCESS_TOKEN_EXPIRE_HOURS`: Token expiration time in hours (default: 24)
 
+#### Google Gemini API
+- `GEMINI_API_KEY`: API key for Google Gemini AI (get from https://aistudio.google.com/app/apikey)
+
 **IMPORTANT**:
 - Generate a strong, unique JWT secret key for each environment
 - Never use the same secret key across development, staging, and production
@@ -824,7 +979,7 @@ For local development with hot-reload, the app directory is mounted as a volume.
    - Enable HSTS (HTTP Strict Transport Security)
 
 4. **Additional Recommendations**:
-   - Implement rate limiting on `/login` endpoint to prevent brute force attacks
+   - Implement rate limiting on `/auth/login` and `/auth/signup` endpoints to prevent brute force attacks
    - Log failed authentication attempts
    - Consider implementing refresh tokens for longer sessions
    - Implement CORS properly (don't use wildcard `*` in production)
@@ -834,14 +989,16 @@ For local development with hot-reload, the app directory is mounted as a volume.
 ### What's Protected
 
 - **All `/users/*` endpoints** require JWT authentication
-- `/login`, `/logout`, `/health`, and `/` are unprotected
+- **All `/circles/*` endpoints** require JWT authentication
+- **All `/recommendations/*` endpoints** require JWT authentication
+- `/auth/login`, `/auth/logout`, `/health`, and `/` are unprotected
 - Invalid or expired tokens return 401 Unauthorized
 - Missing tokens return 401 Unauthorized
 
 ### Authentication Flow Security
 
-1. User submits credentials to `/login`
-2. Server verifies password with bcrypt
+1. User submits credentials to `/auth/signup` (new users) or `/auth/login` (existing users)
+2. Server verifies password with bcrypt (login) or hashes new password (signup)
 3. Server generates JWT with user ID
 4. Client stores token (localStorage, sessionStorage, or memory)
 5. Client includes token in `Authorization` header for all requests
@@ -849,7 +1006,7 @@ For local development with hot-reload, the app directory is mounted as a volume.
 7. Server fetches user from database on each request
 
 This ensures:
-- Passwords are never sent except during login
+- Passwords are never sent except during signup/login
 - Tokens can be validated without database lookup
 - User data is always fresh (queried on each request)
 - No server-side session state needed
