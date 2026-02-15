@@ -144,7 +144,7 @@ class TestAuthAPI(unittest.TestCase):
 
         # Use token to access protected endpoint
         user_res = self.client.get(
-            "/users/current",
+            "/me",
             headers=self.get_auth_headers(token)
         )
         self.assertEqual(user_res.status_code, 200, msg=user_res.text)
@@ -266,7 +266,7 @@ class TestAuthAPI(unittest.TestCase):
         self.assertEqual(res.status_code, 401, msg=res.text)
 
     def test_get_current_user_returns_authenticated_user(self):
-        """Test /users/current returns the authenticated user."""
+        """Test GET /me returns the authenticated user."""
         # Create user and login
         user = self.create_user_direct("alice", "password123", "Alice Smith")
         login_res = self.login("alice", "password123")
@@ -276,7 +276,7 @@ class TestAuthAPI(unittest.TestCase):
 
         # Get current user
         res = self.client.get(
-            "/users/current",
+            "/me",
             headers=self.get_auth_headers(token)
         )
         self.assertEqual(res.status_code, 200, msg=res.text)

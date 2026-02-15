@@ -128,8 +128,8 @@ class TestUsersAPI(unittest.TestCase):
         self.assertEqual(body["name"], "Alice")
 
     def test_get_current_user_returns_authenticated_user(self):
-        """Test /users/current returns the authenticated user from JWT."""
-        res = self.client.get("/users/current", headers=self.get_auth_headers())
+        """Test GET /me returns the authenticated user from JWT."""
+        res = self.client.get("/me", headers=self.get_auth_headers())
         self.assertEqual(res.status_code, 200, msg=res.text)
 
         body = res.json()
@@ -137,8 +137,8 @@ class TestUsersAPI(unittest.TestCase):
         self.assertEqual(body["name"], "Test Admin")
 
     def test_get_current_user_without_token_returns_401(self):
-        """Test /users/current without authentication returns 401."""
-        res = self.client.get("/users/current")
+        """Test GET /me without authentication returns 401."""
+        res = self.client.get("/me")
         self.assertEqual(res.status_code, 401, msg=res.text)
 
     def test_get_all_users(self):
