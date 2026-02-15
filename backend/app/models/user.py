@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, JSON
+from sqlalchemy import Column, Integer, String, JSON
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -7,7 +7,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)

@@ -17,6 +17,9 @@ class UserBasicDTO(BaseModel):
     username: str
     name: str
 
+    class Config:
+        from_attributes = True
+
 class UserResponseDTO(BaseModel):
     id: int
     username: str

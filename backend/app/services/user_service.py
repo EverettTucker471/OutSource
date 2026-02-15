@@ -56,7 +56,7 @@ class UserService:
         for user in user_list:
             dto = UserBasicDTO.model_validate(user)
             return_list.append(dto)
-        
+
         return return_list
 
     def update_user(self, user_id: int, user_dto: UserUpdateDTO) -> UserResponseDTO:

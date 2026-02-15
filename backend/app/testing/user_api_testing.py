@@ -5,9 +5,11 @@ from typing import Generator
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.database import Base, get_db
+from app.models.user import User  # Import the User model to register it with Base
 
 
 TEST_DATABASE_URL = "sqlite+pysqlite:///:memory:"
@@ -15,6 +17,7 @@ TEST_DATABASE_URL = "sqlite+pysqlite:///:memory:"
 engine = create_engine(
     TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -42,8 +45,8 @@ class TestUsersAPI(unittest.TestCase):
     # Helpers
     # -----------
 
-    def create_user(self, username: str, name: str):
-        return self.client.post("/users", json={"username": username, "name": name})
+    def create_user(self, username: str, name: str, password: str = "password123"):
+        return self.client.post("/users", json={"username": username, "name": name, "password": password})
 
     # -----------
     # Tests
