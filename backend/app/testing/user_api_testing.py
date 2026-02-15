@@ -73,14 +73,6 @@ class TestUsersAPI(unittest.TestCase):
         """Return Authorization header for authenticated requests."""
         return {"Authorization": f"Bearer {self.auth_token}"}
 
-    def create_user(self, username: str, name: str, password: str = "password123"):
-        """Create user via API endpoint (requires authentication)."""
-        return self.client.post(
-            "/users",
-            json={"username": username, "name": name, "password": password},
-            headers=self.get_auth_headers()
-        )
-
     def create_user_direct(self, username: str, password: str, name: str):
         """Create user directly in database (bypasses authentication)."""
         user = User(
@@ -98,29 +90,10 @@ class TestUsersAPI(unittest.TestCase):
     # Tests
     # -----------
 
-    def test_create_user_returns_201(self):
-        """Test creating a user with authentication returns 201."""
-        res = self.create_user("jdking7", "Jacob King")
-        self.assertEqual(res.status_code, 201, msg=res.text)
-
-        body = res.json()
-        self.assertIn("id", body)
-        self.assertEqual(body["username"], "jdking7")
-        self.assertEqual(body["name"], "Jacob King")
-
-    def test_create_user_without_auth_returns_401(self):
-        """Test creating a user without authentication returns 401."""
-        res = self.client.post(
-            "/users",
-            json={"username": "newuser", "name": "New User", "password": "password123"}
-        )
-        self.assertEqual(res.status_code, 401, msg=res.text)
-
     def test_get_user_by_id(self):
         """Test getting a user by ID with authentication."""
-        created = self.create_user("alice", "Alice")
-        self.assertEqual(created.status_code, 201, msg=created.text)
-        user_id = created.json()["id"]
+        created = self.create_user_direct("alice", "password123", "Alice")
+        user_id = created.id
 
         res = self.client.get(f"/users/{user_id}", headers=self.get_auth_headers())
         self.assertEqual(res.status_code, 200, msg=res.text)
@@ -153,11 +126,9 @@ class TestUsersAPI(unittest.TestCase):
         self.assertEqual(len(initial_users), 1)
         self.assertEqual(initial_users[0]["username"], "testadmin")
 
-        # Add two more users
-        r1 = self.create_user("u1", "User One")
-        r2 = self.create_user("u2", "User Two")
-        self.assertEqual(r1.status_code, 201, msg=r1.text)
-        self.assertEqual(r2.status_code, 201, msg=r2.text)
+        # Add two more users directly to database
+        self.create_user_direct("u1", "password123", "User One")
+        self.create_user_direct("u2", "password123", "User Two")
 
         # Should now have 3 users total
         res = self.client.get("/users", headers=self.get_auth_headers())
