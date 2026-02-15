@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'create_event_page.dart'; // Import the new creation page
 
 // --- Data Models matching the FastAPI schemas ---
 
@@ -42,6 +43,24 @@ class WeatherResponseDTO {
   }
 }
 
+// New Models for Recommendations
+class RecommendationItemDTO {
+  final String activityName;
+  final String activityDescription;
+
+  RecommendationItemDTO({
+    required this.activityName,
+    required this.activityDescription,
+  });
+
+  factory RecommendationItemDTO.fromJson(Map<String, dynamic> json) {
+    return RecommendationItemDTO(
+      activityName: json['activity_name'],
+      activityDescription: json['activity_description'],
+    );
+  }
+}
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -50,21 +69,32 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
   // State variables
   WeatherResponseDTO? _weatherData;
+  List<RecommendationItemDTO> _personalRecommendations = [];
+  List<RecommendationItemDTO> _groupRecommendations = [];
+  
   bool _isLoadingWeather = true;
+  bool _isLoadingRecommendations = true;
   String? _weatherError;
 
   @override
   void initState() {
     super.initState();
     _fetchWeather();
+    _fetchRecommendations();
   }
 
   String _getBaseUrl() {
     if (kIsWeb) return 'http://127.0.0.1:8000';
     if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:8000';
     return 'http://127.0.0.1:8000';
+  }
+
+  Future<String?> _getToken() async {
+    return await _storage.read(key: 'jwt_token');
   }
 
   /// Fetches weather from the backend using lat/lon
@@ -75,7 +105,6 @@ class _HomePageState extends State<HomePage> {
     });
 
     final baseUrl = _getBaseUrl();
-    // Defaulting to Raleigh, NC as per your schema defaults
     const double lat = 35.7721;
     const double lon = -78.6382;
 
@@ -104,6 +133,93 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Fetches AI recommendations for User and their first Circle
+  Future<void> _fetchRecommendations() async {
+    setState(() => _isLoadingRecommendations = true);
+    final baseUrl = _getBaseUrl();
+    final token = await _getToken();
+
+    if (token == null) {
+      setState(() => _isLoadingRecommendations = false);
+      return;
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    try {
+      // 1. Fetch Personal Recommendations (POST /gemini/recommendations)
+      final personalResponse = await http.post(
+        Uri.parse('$baseUrl/gemini/recommendations'),
+        headers: headers,
+      );
+
+      if (personalResponse.statusCode == 200) {
+        final data = json.decode(personalResponse.body);
+        final list = data['recommendations'] as List;
+        _personalRecommendations = list.map((i) => RecommendationItemDTO.fromJson(i)).toList();
+      }
+
+      // 2. Fetch User Circles to get an ID for Group Recommendations
+      final circlesResponse = await http.get(
+        Uri.parse('$baseUrl/me/circles'),
+        headers: headers,
+      );
+
+      if (circlesResponse.statusCode == 200) {
+        final List circlesData = json.decode(circlesResponse.body);
+        if (circlesData.isNotEmpty) {
+          // Pick the first circle found
+          final int firstCircleId = circlesData[0]['id'];
+          
+          // 3. Fetch Group Recommendations (POST /gemini/recommendations/{id})
+          final groupRecResponse = await http.post(
+            Uri.parse('$baseUrl/gemini/recommendations/$firstCircleId'),
+            headers: headers,
+          );
+
+          if (groupRecResponse.statusCode == 200) {
+            final groupData = json.decode(groupRecResponse.body);
+            final groupList = groupData['recommendations'] as List;
+            _groupRecommendations = groupList.map((i) => RecommendationItemDTO.fromJson(i)).toList();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Recommendation Fetch Error: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingRecommendations = false);
+      }
+    }
+  }
+
+  // Navigation Logic for Sliding Window
+  void _openCreateEventPage(String name, String description) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => CreateEventPage(
+          initialTitle: name,
+          initialDescription: description,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0); // Slide up from bottom
+          const end = Offset.zero;
+          const curve = Curves.easeOutCubic;
+
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,7 +228,10 @@ class _HomePageState extends State<HomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _fetchWeather,
+            onPressed: () {
+              _fetchWeather();
+              _fetchRecommendations();
+            },
           ),
         ],
       ),
@@ -134,22 +253,8 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 12),
 
-          _buildInfoCard(
-            context,
-            title: 'Personal Recommendation',
-            content: "It's a great day to paddleboard!",
-            icon: Icons.surfing_rounded,
-            iconColor: Colors.blue,
-            onTap: () {},
-          ),
-          _buildInfoCard(
-            context,
-            title: 'Group Recommendation',
-            content: "Your group likes basketball, check the court availability!",
-            icon: Icons.sports_basketball_rounded,
-            iconColor: Colors.deepPurple,
-            onTap: () {},
-          ),
+          _buildRecommendationSection(),
+          
           const SizedBox(height: 20),
         ],
       ),
@@ -187,7 +292,6 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Use the first period of the forecast for the main display
     final current = _weatherData!.forecast.first;
 
     return Container(
@@ -269,6 +373,56 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildRecommendationSection() {
+    if (_isLoadingRecommendations) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: CircularProgressIndicator(),
+      ));
+    }
+
+    if (_personalRecommendations.isEmpty && _groupRecommendations.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text(
+          "Unable to generate recommendations. Please ensure you have added interests in your Profile.",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Personal Recommendations
+        ..._personalRecommendations.map((rec) => _buildInfoCard(
+          context,
+          title: 'Personal Recommendation',
+          content: rec.activityName,
+          description: rec.activityDescription,
+          icon: Icons.person_outline,
+          iconColor: Colors.blue,
+          onTap: () => _openCreateEventPage(rec.activityName, rec.activityDescription),
+        )),
+
+        // Group Recommendations
+        ..._groupRecommendations.map((rec) => _buildInfoCard(
+          context,
+          title: 'Group Recommendation',
+          content: rec.activityName,
+          description: rec.activityDescription,
+          icon: Icons.groups_outlined,
+          iconColor: Colors.deepPurple,
+          onTap: () => _openCreateEventPage(rec.activityName, rec.activityDescription),
+        )),
+      ],
+    );
+  }
+
   Widget _buildSmallDetail(IconData icon, String value) {
     return Row(
       children: [
@@ -291,6 +445,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildInfoCard(BuildContext context,
       {required String title,
       required String content,
+      String? description,
       required IconData icon,
       required Color iconColor,
       required VoidCallback onTap}) {
@@ -307,6 +462,7 @@ class _HomePageState extends State<HomePage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -333,10 +489,20 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       content,
                       style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (description != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ]
                   ],
                 ),
               ),
