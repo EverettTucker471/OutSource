@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.database import init_db
-from app.controllers import user_controller, auth_controller, me_controller, friend_request_controller
+from app.controllers import user_controller, auth_controller, me_controller, friend_request_controller, circle_controller
 import time
 from sqlalchemy import text
 from app.database import engine
@@ -26,6 +26,7 @@ app.include_router(auth_controller.router)
 app.include_router(user_controller.router, prefix="/users")
 app.include_router(me_controller.router)
 app.include_router(friend_request_controller.router)
+app.include_router(circle_controller.router)
 
 
 @app.on_event("startup")
