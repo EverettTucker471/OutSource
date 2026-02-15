@@ -330,7 +330,7 @@ Authorization: Bearer <your-jwt-token>
 
 ### Recommendation Endpoints
 
-All recommendation endpoints require authentication via JWT token in the `Authorization` header. These endpoints use Google Gemini AI to generate personalized activity recommendations based on user preferences and weather conditions.
+All recommendation endpoints require authentication via JWT token in the `Authorization` header. These endpoints use Google Gemini AI to generate personalized activity recommendations based on user preferences and real-time weather conditions from the National Weather Service API.
 
 #### Get User Recommendations
 Get activity recommendations for the current authenticated user. Returns two different activity suggestions based on user preferences and weather conditions.
@@ -420,7 +420,13 @@ Authorization: Bearer <your-jwt-token>
      -H "Authorization: Bearer $TOKEN"
    ```
 
-**Note**: The recommendation feature currently uses placeholder weather data ("temp 75 F low wind no precipitation"). Weather API integration can be added in the future.
+**Weather Data**: The recommendation feature fetches real-time weather data from the National Weather Service API for Raleigh, NC (default location: 35.78°N, 78.69°W). The weather forecast includes a 4-day outlook with:
+- Temperature (°F) for each period
+- Wind speed and conditions
+- Precipitation probability
+- Short forecast description (e.g., "Partly Cloudy", "Sunny")
+
+The 4-day forecast helps the AI suggest activities appropriate for current and upcoming weather conditions.
 
 **Response Format**: Each recommendation endpoint returns a JSON object with a `recommendations` array containing exactly two activity suggestions. Each recommendation includes:
 - `activity_name`: The name of the suggested activity

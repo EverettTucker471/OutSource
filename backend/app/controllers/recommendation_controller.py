@@ -27,7 +27,7 @@ def get_recommendation_service(db: Session = Depends(get_db)) -> RecommendationS
 
 
 @router.post("", response_model=RecommendationResult)
-def get_user_recommendations(
+async def get_user_recommendations(
     current_user: User = Depends(get_current_user),
     service: RecommendationService = Depends(get_recommendation_service)
 ):
@@ -35,16 +35,17 @@ def get_user_recommendations(
     Get activity recommendations for the current user based on their preferences.
 
     This endpoint uses Google Gemini AI to generate personalized activity recommendations
-    based on the current user's preferences and weather conditions.
+    based on the current user's preferences and real-time weather conditions from the
+    National Weather Service API.
 
     Returns:
-        RecommendationResult with activity name and description
+        RecommendationResult with two activity suggestions
     """
-    return service.get_recommendations_for_user(current_user.id)
+    return await service.get_recommendations_for_user(current_user.id)
 
 
 @router.post("/{circle_id}", response_model=RecommendationResult)
-def get_circle_recommendations(
+async def get_circle_recommendations(
     circle_id: int,
     current_user: User = Depends(get_current_user),
     service: RecommendationService = Depends(get_recommendation_service)
@@ -53,12 +54,13 @@ def get_circle_recommendations(
     Get activity recommendations for a circle by combining all members' preferences.
 
     This endpoint uses Google Gemini AI to generate group activity recommendations
-    based on all circle members' preferences and weather conditions.
+    based on all circle members' preferences and real-time weather conditions from the
+    National Weather Service API.
 
     Args:
         circle_id: ID of the circle
 
     Returns:
-        RecommendationResult with activity name and description
+        RecommendationResult with two activity suggestions
     """
-    return service.get_recommendations_for_circle(circle_id)
+    return await service.get_recommendations_for_circle(circle_id)

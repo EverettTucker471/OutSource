@@ -1,4 +1,5 @@
 import google.generativeai as genai
+import httpx
 from typing import List
 from fastapi import HTTPException
 
@@ -28,7 +29,81 @@ class RecommendationService:
             self._model = genai.GenerativeModel("gemini-2.5-flash")
         return self._model
 
-    def get_recommendations_for_user(self, user_id: int) -> RecommendationResult:
+    async def _fetch_weather_data(self, lat: float = 35.78, lon: float = -78.69) -> str:
+        """
+        Fetch weather data from NWS API and format it for Gemini prompt.
+        Returns a 4-day forecast (8 periods covering day/night cycles).
+
+        Args:
+            lat: Latitude (defaults to Raleigh, NC)
+            lon: Longitude (defaults to Raleigh, NC)
+
+        Returns:
+            Formatted weather string for Gemini prompt with 4-day forecast
+        """
+        headers = {
+            "User-Agent": "(outsource.com, contact@outsource.com)",
+            "Accept": "application/geo+json"
+        }
+
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+                # Get point metadata
+                points_url = f"https://api.weather.gov/points/{round(lat, 4)},{round(lon, 4)}"
+                points_resp = await client.get(points_url, headers=headers)
+                points_resp.raise_for_status()
+                points_data = points_resp.json()
+
+                # Extract forecast URL
+                properties = points_data.get("properties", {})
+                forecast_url = properties.get("forecast") or points_data.get("forecast")
+
+                if not forecast_url:
+                    # Fallback to placeholder if API fails
+                    return "temp 75 F low wind no precipitation"
+
+                # Get forecast
+                forecast_resp = await client.get(forecast_url, headers=headers)
+                forecast_resp.raise_for_status()
+                forecast_data = forecast_resp.json()
+
+                # Parse first 8 periods (approximately 4 days - day/night cycles)
+                properties = forecast_data.get("properties", {})
+                periods = properties.get("periods") or forecast_data.get("periods", [])
+
+                if not periods:
+                    return "temp 75 F low wind no precipitation"
+
+                # Collect forecast for next 4 days (up to 8 periods)
+                forecast_summary = []
+                for i, period in enumerate(periods[:8]):
+                    temp = period.get("temperature", 70)
+                    wind = period.get("windSpeed", "calm")
+                    precip = period.get("probabilityOfPrecipitation")
+
+                    # Handle precipitation (may be dict or scalar)
+                    if isinstance(precip, dict):
+                        precip_val = precip.get("value", 0)
+                    else:
+                        precip_val = precip if precip is not None else 0
+
+                    period_name = period.get("name", f"Period {i+1}")
+                    short_forecast = period.get("shortForecast", "")
+
+                    # Format: "Today: 75°F, wind 5 mph, 20% precip, Partly Cloudy"
+                    precip_desc = f"{precip_val}% precip" if precip_val > 0 else "no precip"
+                    forecast_summary.append(
+                        f"{period_name}: {temp}°F, wind {wind}, {precip_desc}, {short_forecast}"
+                    )
+
+                # Join all periods with newlines for better readability
+                return "\n".join(forecast_summary)
+
+        except Exception as e:
+            # Fallback to placeholder on any error
+            return "temp 75 F low wind no precipitation"
+
+    async def get_recommendations_for_user(self, user_id: int) -> RecommendationResult:
         """
         Get activity recommendations for a specific user based on their preferences.
 
@@ -44,8 +119,8 @@ class RecommendationService:
 
         preferences = user.preferences if user.preferences else []
 
-        # For now, use placeholder weather data
-        weather_data = "temp 75 F low wind no precipitation"
+        # Fetch real weather data
+        weather_data = await self._fetch_weather_data()
 
         recommendation_input = RecommendationInput(
             weather_data=weather_data,
@@ -54,7 +129,7 @@ class RecommendationService:
 
         return self._generate_recommendation(recommendation_input)
 
-    def get_recommendations_for_circle(self, circle_id: int) -> RecommendationResult:
+    async def get_recommendations_for_circle(self, circle_id: int) -> RecommendationResult:
         """
         Get activity recommendations for a circle by combining all members' preferences.
 
@@ -82,8 +157,8 @@ class RecommendationService:
         # Remove duplicates while preserving order
         unique_preferences = list(dict.fromkeys(combined_preferences))
 
-        # For now, use placeholder weather data
-        weather_data = "temp 75 F low wind no precipitation"
+        # Fetch real weather data
+        weather_data = await self._fetch_weather_data()
 
         recommendation_input = RecommendationInput(
             weather_data=weather_data,
