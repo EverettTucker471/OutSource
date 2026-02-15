@@ -4,11 +4,28 @@ from app.controllers import user_controller, auth_controller
 import time
 from sqlalchemy import text
 from app.database import engine
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(
     title="OutSource API",
     description="Backend API for OutSource mobile app",
     version="1.0.0"
+)
+
+# Fix for 
+origins = [
+    "http://localhost:3000", # Common Flutter web port
+    "http://localhost:35169",      # Localhost
+    "*",                     # WARNING: Use "*" only for debugging to confirm it works
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth_controller.router)
