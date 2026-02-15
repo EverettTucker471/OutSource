@@ -13,6 +13,7 @@ from app.controllers import (
 import time
 from sqlalchemy import text
 from app.database import engine
+from app.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -22,14 +23,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    # This regex matches http://localhost:3000, :50165, :8080, etc.
-    allow_origin_regex=r"http://localhost:\d+",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: in local mode, allow localhost origins; in AWS, use ALLOWED_ORIGINS env var
+if settings.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"http://localhost:\d+",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(auth_controller.router, prefix="/auth")
 app.include_router(user_controller.router, prefix="/users")

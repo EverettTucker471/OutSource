@@ -142,7 +142,7 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      "Aura",
+                      "OutSource",
                       style: TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.w900,

@@ -1,0 +1,46 @@
+{
+  "family": "outsource-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "EXECUTION_ROLE_ARN",
+  "containerDefinitions": [
+    {
+      "name": "outsource-api",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/outsource-api:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "ENVIRONMENT", "value": "aws" },
+        { "name": "DATABASE_URL", "value": "mysql+pymysql://outsource_admin:YOUR_PASSWORD@YOUR_RDS_ENDPOINT:3306/outsource_db" },
+        { "name": "JWT_SECRET_KEY", "value": "CHANGE_ME" },
+        { "name": "JWT_ALGORITHM", "value": "HS256" },
+        { "name": "JWT_ACCESS_TOKEN_EXPIRE_HOURS", "value": "24" },
+        { "name": "GEMINI_API_KEY", "value": "CHANGE_ME" },
+        { "name": "ALLOWED_ORIGINS", "value": "*" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/outsource-api",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}
