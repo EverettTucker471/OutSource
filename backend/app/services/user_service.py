@@ -23,11 +23,7 @@ class UserService:
             username=user_dto.username,
             password=hashed_password,
             name=user_dto.name,
-            preferences=user_dto.preferences,
-            friends=user_dto.friends,
-            groups=user_dto.groups,
-            inc_requests=user_dto.inc_requests,
-            out_requests=user_dto.out_requests
+            preferences=user_dto.preferences
         )
 
         created_user = self.user_repository.create(user)
@@ -68,14 +64,6 @@ class UserService:
             user.name = user_dto.name
         if user_dto.preferences is not None:
             user.preferences = user_dto.preferences
-        if user_dto.friends is not None:
-            user.friends = user_dto.friends
-        if user_dto.groups is not None:
-            user.groups = user_dto.groups
-        if user_dto.inc_requests is not None:
-            user.inc_requests = user_dto.inc_requests
-        if user_dto.out_requests is not None:
-            user.out_requests = user_dto.out_requests
 
         updated_user = self.user_repository.update(user)
         return UserResponseDTO.model_validate(updated_user)

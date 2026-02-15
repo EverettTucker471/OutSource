@@ -1,7 +1,5 @@
 from sqlalchemy import Column, Integer, String, JSON
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from .base import Base
 
 
 class User(Base):
@@ -12,10 +10,6 @@ class User(Base):
     password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
     preferences = Column(JSON, default=list)
-    friends = Column(JSON, default=list)
-    groups = Column(JSON, default=list)
-    inc_requests = Column(JSON, default=list)
-    out_requests = Column(JSON, default=list)
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', name='{self.name}')>"
