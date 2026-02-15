@@ -22,13 +22,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_controller.router)
+app.include_router(auth_controller.router, prefix="/auth")
 app.include_router(user_controller.router, prefix="/users")
 app.include_router(me_controller.router)
 app.include_router(friend_request_controller.router)
 app.include_router(circle_controller.router)
 app.include_router(event_controller.router)
-
 
 @app.on_event("startup")
 def startup_event():
