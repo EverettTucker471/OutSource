@@ -29,3 +29,8 @@ class UserResponseDTO(BaseModel):
 class UserUpdateDTO(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     preferences: Optional[List[str]] = None
+
+
+class PreferencesUpdateDTO(BaseModel):
+    """DTO for updating user preferences."""
+    preferences: List[str] = Field(..., description="List of user preference tags")
