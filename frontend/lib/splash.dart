@@ -29,11 +29,11 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
   /// Helper to get the correct URL for Android, iOS, and Web
   String get _baseUrl {
     if (kIsWeb) {
-      return "http://127.0.0.1:8000"; // Localhost for Web
+      return "app7-lb-123017161.us-east-1.elb.amazonaws.com:8000"; // Localhost for Web
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       return "http://10.0.2.2:8000"; // Android Emulator
     }
-    return "http://127.0.0.1:8000"; // iOS Simulator or Desktop
+    return "app7-lb-123017161.us-east-1.elb.amazonaws.com:8000"; // iOS Simulator or Desktop
   }
 
   /// Navigates to the main app dashboard upon successful auth
