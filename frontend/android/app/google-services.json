@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "320153364438",
+    "project_id": "outsource-dev2026-487420",
+    "storage_bucket": "outsource-dev2026-487420.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320153364438:android:f3ca5f885b8dae8979a677",
+        "android_client_info": {
+          "package_name": "com.example.frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeidcyDbeSYKdoi9a8wsbv80ccrNlxlQg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
