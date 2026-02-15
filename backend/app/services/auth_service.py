@@ -1,13 +1,20 @@
 from fastapi import HTTPException, status
-from app.dtos.auth_dto import TokenResponseDTO
+from passlib.context import CryptContext
+
+from app.repositories.user_repository import UserRepository
+from app.dtos.auth_dto import TokenResponseDTO, SignupRequestDTO
+from app.dtos.user_dto import UserCreateDTO
 from app.utils.jwt_utils import create_access_token
 from app.dtos.user_dto import UserCreateDTO, UserResponseDTO
 from app.repositories.user_repository import UserRepository
 from app.models.user import User  # <--- CRITICAL IMPORT: You need this to create the object
 
 class AuthService:
-    def __init__(self, user_repository: UserRepository):
+    """Service for authentication operations."""
+
+    def __init__(self, user_repository: UserRepository, user_service=None):
         self.user_repository = user_repository
+        self.user_service = user_service
 
     def authenticate_user(self, username: str, password: str) -> TokenResponseDTO:
         user = self.user_repository.get_by_username(username)
@@ -27,24 +34,37 @@ class AuthService:
 
         access_token = create_access_token(data={"sub": str(user.id)})
         return TokenResponseDTO(access_token=access_token, token_type="bearer")
-    
-    def register_user(self, user_create: UserCreateDTO) -> UserResponseDTO:
-        if self.user_repository.get_by_username(user_create.username):
+
+    def signup_user(self, signup_dto: SignupRequestDTO) -> TokenResponseDTO:
+        """
+        Register a new user and generate a JWT token.
+
+        Args:
+            signup_dto: User signup information (username, password, name, preferences)
+
+        Returns:
+            TokenResponseDTO with JWT access token
+
+        Raises:
+            HTTPException: 400 if username already exists
+        """
+        if self.user_service is None:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already registered"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="UserService not configured"
             )
 
-        # Prepare the data
-        user_data = user_create.model_dump() 
-        # Explicitly set the plain text password (since you aren't hashing)
-        user_data["password"] = user_create.password
+        # Create user via UserService (handles password hashing and validation)
+        user_create_dto = UserCreateDTO(
+            username=signup_dto.username,
+            password=signup_dto.password,
+            name=signup_dto.name,
+            preferences=signup_dto.preferences
+        )
 
-        # FIX 2: Convert the dictionary into a SQLAlchemy User Object
-        # The ** syntax unpacks the dict: User(username="...", password="...", ...)
-        new_user_instance = User(**user_data)
+        created_user = self.user_service.create_user(user_create_dto)
 
-        # Now the repository receives the Object it expects
-        saved_user = self.user_repository.create(new_user_instance)
+        # Create JWT token for the new user
+        access_token = create_access_token(data={"sub": str(created_user.id)})
 
-        return UserResponseDTO.model_validate(saved_user)
+        return TokenResponseDTO(access_token=access_token, token_type="bearer")

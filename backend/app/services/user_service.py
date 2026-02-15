@@ -1,8 +1,11 @@
 from typing import List
 from passlib.context import CryptContext
 from app.repositories.user_repository import UserRepository
+from app.repositories.friend_repository import FriendRepository
+from app.repositories.circle_repository import CircleRepository
 from app.models.user import User
 from app.dtos.user_dto import UserCreateDTO, UserResponseDTO, UserUpdateDTO, UserBasicDTO
+from app.dtos.circle_dto import CircleResponseDTO
 from typing import Optional
 from fastapi import HTTPException
 
@@ -10,8 +13,15 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserService:
-    def __init__(self, user_repository: UserRepository):
+    def __init__(
+        self,
+        user_repository: UserRepository,
+        friend_repository: FriendRepository = None,
+        circle_repository: CircleRepository = None
+    ):
         self.user_repository = user_repository
+        self.friend_repository = friend_repository
+        self.circle_repository = circle_repository
 
     def get_user_by_id(self, user_id: int) -> UserResponseDTO:
         user = self.user_repository.get_by_id(user_id)
@@ -54,3 +64,29 @@ class UserService:
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return pwd_context.verify(plain_password, hashed_password)
+
+    def get_user_friends(self, user_id: int) -> List[UserBasicDTO]:
+        """Get all friends for a specific user."""
+        # First verify user exists
+        user = self.user_repository.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if self.friend_repository is None:
+            raise HTTPException(status_code=500, detail="Friend repository not configured")
+
+        friends = self.friend_repository.get_friends_for_user(user_id)
+        return [UserBasicDTO.model_validate(friend) for friend in friends]
+
+    def get_user_circles(self, user_id: int) -> List[CircleResponseDTO]:
+        """Get all circles a specific user belongs to."""
+        # First verify user exists
+        user = self.user_repository.get_by_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if self.circle_repository is None:
+            raise HTTPException(status_code=500, detail="Circle repository not configured")
+
+        circles = self.circle_repository.get_circles_for_user(user_id)
+        return [CircleResponseDTO.model_validate(circle) for circle in circles]
