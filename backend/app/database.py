@@ -1,15 +1,14 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.config import settings
 from app.models import Base, User, Circle, Event, Friends, CircleMembership, FriendRequests, EventOwnership
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_recycle=settings.DB_POOL_RECYCLE,
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "mysql+pymysql://user:password@db:3306/outsource_db"
 )
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
