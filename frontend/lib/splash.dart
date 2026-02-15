@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:dio/dio.dart';
 
 // Main Entry Point for the Splash Page
@@ -13,53 +15,63 @@ class LoginSplashPage extends StatefulWidget {
 class _LoginSplashPageState extends State<LoginSplashPage> {
   // CONFIGURATION: Ensure this matches your Web Client ID from the Google Cloud Console.
   // Using a Web Client ID is mandatory for the 'serverAuthCode' exchange pattern.
-  static const String _serverClientId = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
-  
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: _serverClientId,
-    scopes: [
-      'email',
-      'https://www.googleapis.com/auth/calendar.readonly',
-    ],
-  );
+  // static const String _serverClientId = "320153364438-lo4msgmc9besqd636rpleqdcaqemcfcb.apps.googleusercontent.com";
+  static const String _serverClientId = "320153364438-ebv8qiupap6pjkd4a76c4vibmrt1f47a.apps.googleusercontent.com";
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+
+  Future<void> signOut() async {
+    return await _firebaseAuth.signOut();
+  }
+
+  Future<void> initGoogleSignIn() async {
+    print("Initializing Sign-in");
+    await GoogleSignIn.instance.initialize(
+      serverClientId: _serverClientId,
+    );
+  }
 
   bool _isLoading = false;
 
   /// Initiates the Google Sign-In flow and retrieves a one-time server auth code.
   Future<void> _handleSignIn() async {
+  try {
+    initGoogleSignIn();
+    
     setState(() => _isLoading = true);
-    try {
-      // 1. Trigger the native/web Google Sign-In overlay
-      final GoogleSignInAccount? user = await _googleSignIn.signIn();
-      
-      if (user != null) {
-        // 2. Retrieve the Server Auth Code (not the Access Token)
-        final String? serverAuthCode = user.serverAuthCode;
 
-        if (serverAuthCode != null) {
-          // 3. Forward the code to your FastAPI backend on AWS ECS
-          await _sendCodeToBackend(serverAuthCode);
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Account linked! Fetching calendar data..."),
-                backgroundColor: Colors.green,
-              ),
-            );
-            // Logic to navigate to your main app screen would go here
-          }
-        } else {
-          throw Exception("Failed to retrieve Server Auth Code from Google.");
-        }
-      }
-    } catch (error) {
-      debugPrint("Sign-in error: $error");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Sign-in failed: $error")),
-        );
-      }
+    // 1. SIGN IN (Authentication)
+    // In v7, this is the part that triggers the native account picker.
+    final GoogleSignInAccount? gUser = await GoogleSignIn.instance.authenticate();
+
+    if (gUser == null) {
+      setState(() => _isLoading = false);
+      return; // User canceled
+    }
+
+    // 2. GET AUTHENTICATION (ID Token)
+    // Note: In v7, this is a synchronous getter.
+    final String? idToken = gUser.authentication.idToken;
+
+    // 3. AUTHORIZE SCOPES (Access Token)
+    // This is the NEW step. You MUST explicitly authorize scopes to get an accessToken.
+    final List<String> scopes = ['email', 'profile'];
+    final authorization = await gUser.authorizationClient.authorizeScopes(scopes);
+    final String? accessToken = authorization.accessToken;
+
+    // 4. FIREBASE SIGN IN
+    if (idToken != null && accessToken != null) {
+      final credential = GoogleAuthProvider.credential(
+        accessToken: accessToken,
+        idToken: idToken,
+      );
+      await _firebaseAuth.signInWithCredential(credential);
+    } else {
+      throw "Missing tokens: ID($idToken) or Access($accessToken)";
+    }
+
+    } catch (e) {
+      print("Google Sign-In Failure: $e");
+      // If you see "No credential available" here, it's still likely the SHA-1 mismatch.
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -89,8 +101,10 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+Widget build(BuildContext context) {
+  return Scaffold(
+      // Use resizeToAvoidBottomInset to prevent the keyboard from causing overflows
+      resizeToAvoidBottomInset: true, 
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -102,81 +116,94 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Hero Icon / Logo
-              const CircleAvatar(
-                radius: 60,
-                backgroundColor: Colors.white10,
-                child: Icon(Icons.auto_awesome, size: 60, color: Colors.cyanAccent),
-              ),
-              const SizedBox(height: 32),
-              
-              // App Title
-              const Text(
-                "Aura Weather",
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Intelligent Schedule & Weather Sync",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-              const SizedBox(height: 80),
+          // FIX 1: Wrap in SingleChildScrollView to allow vertical scrolling
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 60), // Top spacing for scroll view
+                  
+                  // Hero Icon / Logo
+                  const CircleAvatar(
+                    radius: 60,
+                    backgroundColor: Colors.white10,
+                    child: Icon(Icons.auto_awesome, size: 60, color: Colors.cyanAccent),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // App Title
+                  const Text(
+                    "Aura Weather",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Intelligent Schedule & Weather Sync",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  
+                  // FIX 2: Reduce this massive spacer so it fits on small screens
+                  const SizedBox(height: 60), 
 
-              // Sign In Button or Loading State
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _isLoading
-                    ? const Column(
-                        children: [
-                          CircularProgressIndicator(color: Colors.cyanAccent),
-                          SizedBox(height: 16),
-                          Text("Securing tokens...", style: TextStyle(color: Colors.white54)),
-                        ],
-                      )
-                    : ElevatedButton.icon(
-                        onPressed: _handleSignIn,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
+                  // Sign In Button
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isLoading
+                        ? const Column(
+                            children: [
+                              CircularProgressIndicator(color: Colors.cyanAccent),
+                              SizedBox(height: 16),
+                              Text("Securing tokens...", style: TextStyle(color: Colors.white54)),
+                            ],
+                          )
+                        : ElevatedButton.icon(
+                            onPressed: _handleSignIn,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(50),
+                              ),
+                              elevation: 10,
+                            ),
+                            icon: Image.network(
+                              'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_Color_Icon.svg/1200px-Google_Color_Icon.svg.png',
+                              height: 24,
+                              // Error handling for network images
+                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.login),
+                            ),
+                            label: const Text(
+                              "Continue with Google",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
                           ),
-                          elevation: 10,
-                        ),
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_Color_Icon.svg/1200px-Google_Color_Icon.svg.png',
-                          height: 24,
-                        ),
-                        label: const Text(
-                          "Continue with Google",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                  ),
+                  
+                  const SizedBox(height: 40),
+                  const Text(
+                    "By signing in, you agree to allow Aura to read your calendar events to provide weather-optimized scheduling.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+                  const SizedBox(height: 20), // Bottom padding for scroll view
+                ],
               ),
-              
-              const SizedBox(height: 40),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  "By signing in, you agree to allow Aura to read your calendar events to provide weather-optimized scheduling.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
