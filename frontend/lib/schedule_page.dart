@@ -56,11 +56,11 @@ class _SchedulePageState extends State<SchedulePage> {
   Future<void> _fetchEvents() async {
     String baseUrl;
     if (kIsWeb) {
-      baseUrl = 'http://127.0.0.1:8000';
+      baseUrl = 'app7-lb-123017161.us-east-1.elb.amazonaws.com:8000';
     } else if (defaultTargetPlatform == TargetPlatform.android) {
       baseUrl = 'http://10.0.2.2:8000';
     } else {
-      baseUrl = 'http://127.0.0.1:8000';
+      baseUrl = 'app7-lb-123017161.us-east-1.elb.amazonaws.com:8000';
     }
 
     final url = Uri.parse('$baseUrl/me/events');
