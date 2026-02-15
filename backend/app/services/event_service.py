@@ -36,9 +36,9 @@ class EventService:
         # Determine initial state based on start time
         now = datetime.now()
         if event_dto.start_at > now:
-            state = EventState.UPCOMING
+            state = EventState.upcoming
         else:
-            state = EventState.PASSED
+            state = EventState.passed
 
         event = Event(
             name=event_dto.name,
