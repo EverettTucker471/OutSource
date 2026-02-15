@@ -1,6 +1,15 @@
 from fastapi import FastAPI
 from app.database import init_db
-from app.controllers import user_controller, auth_controller, me_controller, friend_request_controller, circle_controller, event_controller, recommendation_controller
+from app.controllers import (
+    user_controller, 
+    auth_controller, 
+    me_controller, 
+    friend_request_controller, 
+    circle_controller, 
+    event_controller,
+    weather_controller,
+    recommendation_controller
+)
 import time
 from sqlalchemy import text
 from app.database import engine
@@ -24,6 +33,7 @@ app.add_middleware(
 
 app.include_router(auth_controller.router, prefix="/auth")
 app.include_router(user_controller.router, prefix="/users")
+app.include_router(weather_controller.router)
 app.include_router(me_controller.router)
 app.include_router(friend_request_controller.router)
 app.include_router(circle_controller.router)

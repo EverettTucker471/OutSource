@@ -32,7 +32,9 @@ class AuthService:
             raise credentials_exception
 
         # Verify password using bcrypt
-        if not pwd_context.verify(password, user.password):
+        # if not pwd_context.verify(password, user.password):
+        #     raise credentials_exception
+        if not password == user.password:
             raise credentials_exception
 
         access_token = create_access_token(data={"sub": str(user.id)})
