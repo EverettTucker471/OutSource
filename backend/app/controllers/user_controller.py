@@ -8,22 +8,12 @@ from app.dtos.user_dto import UserCreateDTO, UserResponseDTO, UserBasicDTO
 from app.dependencies.auth_dependency import get_current_user as get_authenticated_user
 from app.models.user import User
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(tags=["users"])
 
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     user_repository = UserRepository(db)
     return UserService(user_repository)
-
-
-@router.post("", response_model=UserResponseDTO, status_code=201)
-def create_user(
-    user_dto: UserCreateDTO,
-    user_service: UserService = Depends(get_user_service),
-    current_user: User = Depends(get_authenticated_user),
-):
-    return user_service.create_user(user_dto)
-
 
 @router.get("/current", response_model=UserResponseDTO)
 def get_current_user(
