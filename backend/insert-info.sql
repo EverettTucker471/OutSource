@@ -34,20 +34,21 @@ INSERT INTO friend_requests (outgoing_user_id, incoming_user_id, status) VALUES
 (1, 2, 'pending'), -- Sunny to Wendy
 (3, 1, 'pending'); -- Chris to Sunny
 
--- Start a transaction to accept a friend request
-START TRANSACTION;
+-- test accept friend request
+-- -- Start a transaction to accept a friend request
+-- START TRANSACTION;
 
 -- 1. Update the request status
-UPDATE friend_requests
-SET status = 'accepted'
-WHERE id = 1;
+-- UPDATE friend_requests
+-- SET status = 'accepted'
+-- WHERE id = 1;
 
--- 2. Insert into the friends table (Sunny and Wendy are now friends)
-INSERT INTO friends (user1_id, user2_id)
-VALUES (1, 2);
+-- -- 2. Insert into the friends table (Sunny and Wendy are now friends)
+-- INSERT INTO friends (user1_id, user2_id)
+-- VALUES (1, 2);
 
 -- Commit the changes to the database
-COMMIT;
+-- COMMIT;
 
 -- Sample queries to verify the data (commented out)
 -- SELECT * FROM users;
