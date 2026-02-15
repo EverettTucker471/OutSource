@@ -33,6 +33,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       JWT_ALGORITHM: ${JWT_ALGORITHM}
       JWT_ACCESS_TOKEN_EXPIRE_HOURS: ${JWT_ACCESS_TOKEN_EXPIRE_HOURS}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
