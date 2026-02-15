@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.database import init_db
-from app.controllers import user_controller
+from app.controllers import user_controller, auth_controller
 import time
 from sqlalchemy import text
 from app.database import engine
@@ -11,6 +11,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.include_router(auth_controller.router)
 app.include_router(user_controller.router)
 
 
