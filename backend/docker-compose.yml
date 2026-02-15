@@ -28,6 +28,9 @@ services:
       - "${API_PORT}:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_ACCESS_TOKEN_EXPIRE_HOURS: ${JWT_ACCESS_TOKEN_EXPIRE_HOURS}
     depends_on:
       db:
         condition: service_healthy

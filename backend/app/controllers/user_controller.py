@@ -16,15 +16,6 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(user_repository)
 
 
-@router.post("", response_model=UserResponseDTO, status_code=201)
-def create_user(
-    user_dto: UserCreateDTO,
-    user_service: UserService = Depends(get_user_service),
-    current_user: User = Depends(get_authenticated_user),
-):
-    return user_service.create_user(user_dto)
-
-
 @router.get("/current", response_model=UserResponseDTO)
 def get_current_user(
     current_user: User = Depends(get_authenticated_user),
