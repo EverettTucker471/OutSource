@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_controller.router, prefix="/auth")
-app.include_router(user_controller.router, prefix="/user")
+app.include_router(user_controller.router, prefix="/users")
 
 
 @app.on_event("startup")

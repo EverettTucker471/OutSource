@@ -1,6 +1,7 @@
+import 'package:flutter/foundation.dart'; // Replaces dart:io for web support
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'main.dart'; // Import to access MainNavigationScreen
+import 'main_navigation_screen.dart';
 
 class LoginSplashPage extends StatefulWidget {
   const LoginSplashPage({super.key});
@@ -10,9 +11,6 @@ class LoginSplashPage extends StatefulWidget {
 }
 
 class _LoginSplashPageState extends State<LoginSplashPage> {
-  // CONFIGURATION: Ensure this matches your backend IP/Domain
-  final String _baseUrl = "http://localhost:8000"; 
-
   final Dio _dio = Dio();
   final _formKey = GlobalKey<FormState>();
   
@@ -25,10 +23,22 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  /// Helper to get the correct URL for Android, iOS, and Web
+  String get _baseUrl {
+    if (kIsWeb) {
+      return "http://127.0.0.1:8000"; // Localhost for Web
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
+      return "http://10.0.2.2:8000"; // Android Emulator
+    }
+    return "http://127.0.0.1:8000"; // iOS Simulator or Desktop
+  }
+
   /// Navigates to the main app dashboard upon successful auth
   void _navigateToHome() {
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+      // Removed 'const' to prevent potential constructor issues
+      MaterialPageRoute(builder: (_) => MainNavigationScreen()),
     );
   }
 
@@ -38,7 +48,7 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
 
     setState(() => _isLoading = true);
 
-    // Endpoints as requested: /auth/login and /auth/signup
+    // Endpoints: /auth/login and /auth/signup
     final String endpoint = _isLogin ? "/auth/login" : "/auth/signup";
     
     final Map<String, dynamic> data = {
@@ -53,27 +63,34 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
         data: data,
         options: Options(
           headers: {"Content-Type": "application/json"},
-          validateStatus: (status) => status! < 500, // Handle 4xx manually
+          // We allow 4xx so we can handle the error message manually below
+          validateStatus: (status) => status! < 500, 
         ),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!_isLogin) {
-            // If we just signed up, we don't have a token yet. 
-            // We must call the login logic now.
+            // If we just signed up successfully, immediately log in
             _isLogin = true; 
-            await _handleAuth(); 
+            await _handleAuth(); // Recursive call to login
             return;
         }
+        
+        // Login Success
         final token = response.data['access_token'] ?? response.data['token'];
         debugPrint("JWT: $token");
+        // TODO: Save token to SecureStorage here
         _navigateToHome();
+      } else {
+        // Handle 400/401 errors specifically
+        final msg = response.data['detail'] ?? "Authentication failed";
+        _showErrorSnackBar(msg.toString());
       }
     } on DioException catch (e) {
       debugPrint("Auth Error: ${e.message}");
       _showErrorSnackBar("Could not connect to server. Ensure backend is running.");
     } catch (e) {
-      _showErrorSnackBar("An unexpected error occurred.");
+      _showErrorSnackBar("An unexpected error occurred: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -193,45 +210,46 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
                                       _isLogin ? "Login" : "Sign Up", 
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
                                     ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 32),
+                    const SizedBox(height: 32),
 
-                  // Toggle Login/Signup
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _isLogin = !_isLogin;
-                        // Optional: Clear fields when switching
-                        _usernameController.clear();
-                        _passwordController.clear();
-                      });
-                    },
-                    child: RichText(
-                      text: TextSpan(
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
-                        children: [
-                          TextSpan(text: _isLogin ? "Don't have an account? " : "Already have an account? "),
-                          TextSpan(
-                            text: _isLogin ? "Sign Up" : "Login",
-                            style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
-                          ),
-                        ],
+                    // Toggle Login/Signup
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _isLogin = !_isLogin;
+                          // Optional: Clear fields when switching
+                          _usernameController.clear();
+                          _passwordController.clear();
+                        });
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(color: Colors.white70, fontSize: 14),
+                          children: [
+                            TextSpan(text: _isLogin ? "Don't have an account? " : "Already have an account? "),
+                            TextSpan(
+                              text: _isLogin ? "Sign Up" : "Login",
+                              style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildTextField({
