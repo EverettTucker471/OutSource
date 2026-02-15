@@ -8,6 +8,7 @@ from app.controllers import (
     circle_controller, 
     event_controller,
     weather_controller,
+    recommendation_controller
 )
 import time
 from sqlalchemy import text
@@ -37,6 +38,7 @@ app.include_router(me_controller.router)
 app.include_router(friend_request_controller.router)
 app.include_router(circle_controller.router)
 app.include_router(event_controller.router)
+app.include_router(recommendation_controller.router)
 
 @app.on_event("startup")
 def startup_event():

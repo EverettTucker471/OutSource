@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, List
 
 
 class RecommendationInput(BaseModel):
@@ -8,7 +8,22 @@ class RecommendationInput(BaseModel):
     preferences: list[str]
 
 
-class RecommendationResult(BaseModel):
-    """Result returned from Gemini recommendation"""
+class RecommendationItem(BaseModel):
+    """Single activity recommendation"""
     activity_name: str
     activity_description: str
+
+
+class RecommendationResult(BaseModel):
+    """Result containing multiple recommendations"""
+    recommendations: List[RecommendationItem]
+
+
+class InterestsRequestDTO(BaseModel):
+    """Request DTO for parsing interests to activities"""
+    interests_description: str
+
+
+class ActivitiesResponseDTO(BaseModel):
+    """Response DTO containing list of activity strings"""
+    activities: List[str]
