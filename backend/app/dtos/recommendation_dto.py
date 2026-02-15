@@ -17,3 +17,13 @@ class RecommendationItem(BaseModel):
 class RecommendationResult(BaseModel):
     """Result containing multiple recommendations"""
     recommendations: List[RecommendationItem]
+
+
+class InterestsRequestDTO(BaseModel):
+    """Request DTO for parsing interests to activities"""
+    interests_description: str
+
+
+class ActivitiesResponseDTO(BaseModel):
+    """Response DTO containing list of activity strings"""
+    activities: List[str]

@@ -2,6 +2,19 @@
 
 This document explains how to run the OutSource Python backend API and MySQL database using Docker containers.
 
+## Key Features
+
+- **JWT Authentication** - Secure token-based authentication with 24-hour expiration
+- **Google Gemini AI Integration** - AI-powered activity recommendations and interest parsing
+  - Personalized recommendations based on user preferences and weather
+  - Group recommendations for circles
+  - Natural language interest parsing
+- **Real-time Weather Data** - Integration with National Weather Service API for activity suggestions
+- **User Management** - Create and manage user accounts with preferences
+- **Circles** - Create and join groups for shared activities
+- **RESTful API** - Clean, well-documented endpoints with OpenAPI/Swagger
+- **Automated Testing** - Comprehensive test suite using pytest
+
 ## Prerequisites
 
 - Docker Desktop installed and running
@@ -154,6 +167,28 @@ Once the containers are running:
 - **Health Check**: http://localhost:8000/health
 - **MySQL Database**: localhost:3306
 
+## Quick Start - Testing Gemini AI Endpoints
+
+Get started quickly with the AI-powered features:
+
+```bash
+# 1. Sign up and get your JWT token
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"pass123","name":"Test User","preferences":["hiking","photography"]}' \
+  | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+
+# 2. Get personalized activity recommendations
+curl -X POST http://localhost:8000/gemini/recommendations \
+  -H "Authorization: Bearer $TOKEN"
+
+# 3. Parse your interests into activities
+curl -X POST http://localhost:8000/gemini/parse-interest \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"interests_description":"I love outdoor adventures and creative hobbies"}'
+```
+
 ## Authentication
 
 The API uses JWT (JSON Web Token) authentication to secure endpoints.
@@ -195,8 +230,40 @@ The JWT token payload contains:
 - `GET /users` - List all users
 - `GET /users/{user_id}` - Get user by ID
 - `GET /users/current` - Get current authenticated user
+- `POST /gemini/recommendations` - Get AI recommendations for current user
+- `POST /gemini/recommendations/{circleId}` - Get AI recommendations for circle
+- `POST /gemini/parse-interest` - Parse interests to activities
 
 ## API Endpoints
+
+### Quick Reference
+
+#### Authentication (No Auth Required)
+- `POST /auth/signup` - Register new user and receive JWT token
+- `POST /auth/login` - Authenticate and receive JWT token
+- `POST /auth/logout` - Logout (client-side token disposal)
+
+#### Users (Requires Auth)
+- `POST /users` - Create new user
+- `GET /users` - List all users
+- `GET /users/{user_id}` - Get user by ID
+- `GET /users/current` - Get current authenticated user
+
+#### Gemini AI (Requires Auth)
+- `POST /gemini/recommendations` - Get personalized activity recommendations for current user
+- `POST /gemini/recommendations/{circleId}` - Get group activity recommendations for a circle
+- `POST /gemini/parse-interest` - Parse interest description into activity list
+
+#### Circles (Requires Auth)
+- `POST /circles` - Create a new circle
+- `GET /circles` - List all circles
+- `GET /circles/{circle_id}` - Get circle details
+- `POST /circles/{circle_id}/join` - Join a circle
+- `POST /circles/{circle_id}/leave` - Leave a circle
+
+#### Health Check (No Auth Required)
+- `GET /health` - API health check
+- `GET /` - Welcome message
 
 ### Authentication Endpoints
 
@@ -328,15 +395,15 @@ Authorization: Bearer <your-jwt-token>
 ]
 ```
 
-### Recommendation Endpoints
+### Gemini AI Endpoints
 
-All recommendation endpoints require authentication via JWT token in the `Authorization` header. These endpoints use Google Gemini AI to generate personalized activity recommendations based on user preferences and real-time weather conditions from the National Weather Service API.
+All Gemini AI endpoints require authentication via JWT token in the `Authorization` header. These endpoints use Google Gemini AI to generate personalized activity recommendations based on user preferences and real-time weather conditions from the National Weather Service API.
 
 #### Get User Recommendations
 Get activity recommendations for the current authenticated user. Returns two different activity suggestions based on user preferences and weather conditions.
 
 ```bash
-POST /recommendations
+POST /gemini/recommendations
 Authorization: Bearer <your-jwt-token>
 
 # Response (200 OK):
@@ -358,11 +425,11 @@ Authorization: Bearer <your-jwt-token>
 Get activity recommendations for a circle by combining all members' preferences. Returns two different activity suggestions that work well for group activities.
 
 ```bash
-POST /recommendations/{circle_id}
+POST /gemini/recommendations/{circleId}
 Authorization: Bearer <your-jwt-token>
 
 # Example: Get recommendations for circle with ID 1
-POST /recommendations/1
+POST /gemini/recommendations/1
 Authorization: Bearer <your-jwt-token>
 
 # Response (200 OK):
@@ -402,7 +469,7 @@ Authorization: Bearer <your-jwt-token>
 
 3. **Get recommendations for yourself**:
    ```bash
-   curl -X POST http://localhost:8000/recommendations \
+   curl -X POST http://localhost:8000/gemini/recommendations \
      -H "Authorization: Bearer $TOKEN"
    ```
 
@@ -416,9 +483,81 @@ Authorization: Bearer <your-jwt-token>
      | grep -o '"id":[0-9]*' | cut -d':' -f2)
 
    # Get recommendations for the circle
-   curl -X POST http://localhost:8000/recommendations/$CIRCLE_ID \
+   curl -X POST http://localhost:8000/gemini/recommendations/$CIRCLE_ID \
      -H "Authorization: Bearer $TOKEN"
    ```
+
+#### Parse Interests to Activities
+Convert a free-form description of interests into a list of 1-2 word activity suggestions. This endpoint uses Gemini AI to extract specific activities from interest descriptions.
+
+```bash
+POST /gemini/parse-interest
+Authorization: Bearer <your-jwt-token>
+Content-Type: application/json
+
+{
+  "interests_description": "I love being outdoors and staying active. I enjoy team sports and photography."
+}
+
+# Response (200 OK):
+{
+  "activities": [
+    "hiking",
+    "soccer",
+    "photography",
+    "volleyball",
+    "cycling",
+    "basketball",
+    "trail running"
+  ]
+}
+```
+
+**Example usage via curl**:
+```bash
+# First, login to get a JWT token
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "password": "testpass123"}' \
+  | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+
+# Parse interests to activities
+curl -X POST http://localhost:8000/gemini/parse-interest \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "interests_description": "I enjoy outdoor adventures, creative hobbies, and staying fit"
+  }'
+```
+
+**Example responses for different interest descriptions**:
+
+1. Interest: "I like water activities and relaxation"
+   ```json
+   {
+     "activities": ["swimming", "kayaking", "yoga", "paddleboarding", "meditation"]
+   }
+   ```
+
+2. Interest: "I'm into technology and competitive gaming"
+   ```json
+   {
+     "activities": ["gaming", "coding", "esports", "robotics", "chess"]
+   }
+   ```
+
+3. Interest: "I love arts and cultural experiences"
+   ```json
+   {
+     "activities": ["painting", "museums", "theater", "dancing", "concerts"]
+   }
+   ```
+
+**Use Cases**:
+- Converting user interest descriptions into structured activity tags
+- Generating activity suggestions for user profiles
+- Parsing free-form text into categorized interests
+- Building activity recommendation systems
 
 **Weather Data**: The recommendation feature fetches real-time weather data from the National Weather Service API for Raleigh, NC (default location: 35.78°N, 78.69°W). The weather forecast includes a 4-day outlook with:
 - Temperature (°F) for each period
@@ -996,7 +1135,7 @@ For local development with hot-reload, the app directory is mounted as a volume.
 
 - **All `/users/*` endpoints** require JWT authentication
 - **All `/circles/*` endpoints** require JWT authentication
-- **All `/recommendations/*` endpoints** require JWT authentication
+- **All `/gemini/*` endpoints** require JWT authentication (includes `/gemini/recommendations`, `/gemini/recommendations/{circleId}`, `/gemini/parse-interest`)
 - `/auth/login`, `/auth/logout`, `/health`, and `/` are unprotected
 - Invalid or expired tokens return 401 Unauthorized
 - Missing tokens return 401 Unauthorized

@@ -10,9 +10,9 @@ from app.repositories.circle_repository import CircleRepository
 
 from app.services.recommendation_service import RecommendationService
 
-from app.dtos.recommendation_dto import RecommendationResult
+from app.dtos.recommendation_dto import RecommendationResult, InterestsRequestDTO, ActivitiesResponseDTO
 
-router = APIRouter(prefix="/recommendations", tags=["recommendations"])
+router = APIRouter(prefix="/gemini", tags=["gemini"])
 
 
 def get_recommendation_service(db: Session = Depends(get_db)) -> RecommendationService:
@@ -26,7 +26,7 @@ def get_recommendation_service(db: Session = Depends(get_db)) -> RecommendationS
     )
 
 
-@router.post("", response_model=RecommendationResult)
+@router.post("/recommendations", response_model=RecommendationResult)
 async def get_user_recommendations(
     current_user: User = Depends(get_current_user),
     service: RecommendationService = Depends(get_recommendation_service)
@@ -44,9 +44,30 @@ async def get_user_recommendations(
     return await service.get_recommendations_for_user(current_user.id)
 
 
-@router.post("/{circle_id}", response_model=RecommendationResult)
+@router.post("/parse-interests", response_model=ActivitiesResponseDTO)
+async def parse_interests_to_activities(
+    request_dto: InterestsRequestDTO,
+    current_user: User = Depends(get_current_user),
+    service: RecommendationService = Depends(get_recommendation_service)
+):
+    """
+    Parse a description of interests into a list of activity suggestions.
+
+    This endpoint uses Google Gemini AI to convert a free-form description of
+    interests into a concise list of 1-2 word activity names.
+
+    Args:
+        request_dto: Contains interests_description string
+
+    Returns:
+        ActivitiesResponseDTO with list of 1-2 word activity strings
+    """
+    return await service.parse_interests_to_activities(request_dto.interests_description)
+
+
+@router.post("/recommendations/{circleId}", response_model=RecommendationResult)
 async def get_circle_recommendations(
-    circle_id: int,
+    circleId: int,
     current_user: User = Depends(get_current_user),
     service: RecommendationService = Depends(get_recommendation_service)
 ):
@@ -58,9 +79,9 @@ async def get_circle_recommendations(
     National Weather Service API.
 
     Args:
-        circle_id: ID of the circle
+        circleId: ID of the circle
 
     Returns:
         RecommendationResult with two activity suggestions
     """
-    return await service.get_recommendations_for_circle(circle_id)
+    return await service.get_recommendations_for_circle(circleId)

@@ -4,7 +4,7 @@ from typing import List
 from fastapi import HTTPException
 
 from app.config import settings
-from app.dtos.recommendation_dto import RecommendationInput, RecommendationResult, RecommendationItem
+from app.dtos.recommendation_dto import RecommendationInput, RecommendationResult, RecommendationItem, ActivitiesResponseDTO
 from app.repositories.circle_repository import CircleRepository
 from app.repositories.user_repository import UserRepository
 
@@ -246,4 +246,56 @@ Activity 2 Description: [one sentence description]"""
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to generate recommendation: {type(e).__name__}: {str(e)}"
+            )
+
+    async def parse_interests_to_activities(self, interests_description: str) -> ActivitiesResponseDTO:
+        """
+        Parse a free-form interests description into a list of 1-2 word activity names.
+
+        Args:
+            interests_description: Free-form text describing user's interests
+
+        Returns:
+            ActivitiesResponseDTO with list of 1-2 word activity strings
+        """
+        prompt = f"""Based on the following description of interests, suggest a list of specific activities.
+Each activity should be represented as a SHORT 1-2 word string (e.g., "rock climbing", "yoga", "painting", "hiking").
+
+Interests description: {interests_description}
+
+Please respond with ONLY a comma-separated list of 1-2 word activities (no additional text, explanations, or formatting):
+Example format: hiking, photography, cooking, tennis, reading"""
+
+        try:
+            response = self.model.generate_content(prompt)
+
+            # Check if response was blocked or has no text
+            if not response or not response.parts:
+                raise ValueError(f"Empty response from Gemini. Prompt feedback: {getattr(response, 'prompt_feedback', 'N/A')}")
+
+            # Get the text from response
+            response_text = response.text if hasattr(response, 'text') else None
+
+            if not response_text:
+                raise ValueError(f"No text in Gemini response. Response parts: {response.parts}")
+
+            # Parse comma-separated activities
+            activities = [activity.strip() for activity in response_text.strip().split(',')]
+
+            # Filter out empty strings and validate
+            activities = [act for act in activities if act]
+
+            if not activities:
+                raise ValueError(f"Could not parse activities from Gemini response. Raw response: {response_text}")
+
+            return ActivitiesResponseDTO(activities=activities)
+
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            # Catch all other exceptions and wrap them
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to parse interests to activities: {type(e).__name__}: {str(e)}"
             )
