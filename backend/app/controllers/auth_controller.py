@@ -27,17 +27,6 @@ def login(
 
 @router.post("/signup", response_model=TokenResponseDTO, status_code=201)
 def signup(
-    user_create: UserCreateDTO,
-    auth_service: AuthService = Depends(get_auth_service),
-):
-    # 1. Create the user
-    auth_service.register_user(user_create)
-    
-    # 2. Immediately authenticate them to get a token
-    return auth_service.authenticate_user(user_create.username, user_create.password)
-
-@router.post("/signup", response_model=TokenResponseDTO, status_code=201)
-def signup(
     signup_dto: SignupRequestDTO,
     auth_service: AuthService = Depends(get_auth_service),
 ):

@@ -9,6 +9,9 @@ from app.dtos.user_dto import UserCreateDTO, UserResponseDTO
 from app.repositories.user_repository import UserRepository
 from app.models.user import User  # <--- CRITICAL IMPORT: You need this to create the object
 
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 class AuthService:
     """Service for authentication operations."""
 
@@ -28,8 +31,8 @@ class AuthService:
         if user is None:
             raise credentials_exception
 
-        # FIX 1: Direct comparison since you are NOT hashing passwords yet
-        if user.password != password:
+        # Verify password using bcrypt
+        if not pwd_context.verify(password, user.password):
             raise credentials_exception
 
         access_token = create_access_token(data={"sub": str(user.id)})

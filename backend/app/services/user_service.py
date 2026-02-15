@@ -49,6 +49,39 @@ class UserService:
 
         return return_list
 
+    def create_user(self, user_dto: UserCreateDTO) -> UserResponseDTO:
+        """
+        Create a new user with password hashing.
+
+        Args:
+            user_dto: User creation data with username, password, name, and preferences
+
+        Returns:
+            UserResponseDTO with created user information
+
+        Raises:
+            HTTPException: 400 if username already exists
+        """
+        # Check if username already exists
+        existing_user = self.user_repository.get_by_username(user_dto.username)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already exists")
+
+        # Hash the password
+        hashed_password = pwd_context.hash(user_dto.password)
+
+        # Create user object
+        user = User(
+            username=user_dto.username,
+            password=hashed_password,
+            name=user_dto.name,
+            preferences=user_dto.preferences or []
+        )
+
+        # Save to database
+        created_user = self.user_repository.create(user)
+        return UserResponseDTO.model_validate(created_user)
+
     def update_user(self, user_id: int, user_dto: UserUpdateDTO) -> UserResponseDTO:
         user = self.user_repository.get_by_id(user_id)
         if not user:

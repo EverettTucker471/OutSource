@@ -16,20 +16,9 @@ router = APIRouter(tags=["users"])
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     user_repository = UserRepository(db)
-    return UserService(user_repository)
     friend_repository = FriendRepository(db)
     circle_repository = CircleRepository(db)
     return UserService(user_repository, friend_repository, circle_repository)
-
-
-@router.get("/current", response_model=UserResponseDTO)
-def get_current_user(
-    current_user: User = Depends(get_authenticated_user),
-):
-    """
-    Get currently authenticated user from JWT token.
-    """
-    return UserResponseDTO.model_validate(current_user)
 
 
 @router.get("/{user_id}", response_model=UserResponseDTO)
