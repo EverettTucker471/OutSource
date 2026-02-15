@@ -1,7 +1,7 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.user import Base
+from app.models import Base, User, Circle, Event, Friends, CircleMembership, FriendRequests, EventOwnership
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",

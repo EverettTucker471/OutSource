@@ -1,7 +1,8 @@
+from typing import List
 from passlib.context import CryptContext
 from app.repositories.user_repository import UserRepository
 from app.models.user import User
-from app.dtos.user_dto import UserCreateDTO, UserResponseDTO, UserUpdateDTO
+from app.dtos.user_dto import UserCreateDTO, UserResponseDTO, UserUpdateDTO, UserBasicDTO
 from typing import Optional
 from fastapi import HTTPException
 
@@ -22,8 +23,7 @@ class UserService:
             username=user_dto.username,
             password=hashed_password,
             name=user_dto.name,
-            friends=user_dto.friends,
-            groups=user_dto.groups
+            preferences=user_dto.preferences
         )
 
         created_user = self.user_repository.create(user)
@@ -41,6 +41,20 @@ class UserService:
             return None
         return UserResponseDTO.model_validate(user)
 
+    def get_all_users(self) -> List[UserBasicDTO]:
+        user_list = self.user_repository.get_all()
+
+        # For list endpoints, prefer returning [] instead of None
+        if not user_list:
+            return []
+
+        return_list: List[UserBasicDTO] = []
+        for user in user_list:
+            dto = UserBasicDTO.model_validate(user)
+            return_list.append(dto)
+
+        return return_list
+
     def update_user(self, user_id: int, user_dto: UserUpdateDTO) -> UserResponseDTO:
         user = self.user_repository.get_by_id(user_id)
         if not user:
@@ -48,10 +62,8 @@ class UserService:
 
         if user_dto.name is not None:
             user.name = user_dto.name
-        if user_dto.friends is not None:
-            user.friends = user_dto.friends
-        if user_dto.groups is not None:
-            user.groups = user_dto.groups
+        if user_dto.preferences is not None:
+            user.preferences = user_dto.preferences
 
         updated_user = self.user_repository.update(user)
         return UserResponseDTO.model_validate(updated_user)

@@ -1,9 +1,10 @@
+from typing import List
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.repositories.user_repository import UserRepository
 from app.services.user_service import UserService
-from app.dtos.user_dto import UserCreateDTO, UserResponseDTO
+from app.dtos.user_dto import UserCreateDTO, UserResponseDTO, UserBasicDTO
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -35,3 +36,10 @@ def get_user_by_id(
     user_service: UserService = Depends(get_user_service)
 ):
     return user_service.get_user_by_id(user_id)
+
+
+@router.get("", response_model=List[UserBasicDTO])
+def get_all_users(
+    user_service: UserService = Depends(get_user_service)
+):
+    return user_service.get_all_users()
