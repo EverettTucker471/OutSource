@@ -41,10 +41,10 @@ def get_user_by_id(
     return user_service.get_user_by_id(user_id)
 
 
-@router.get("", response_model=List[UserBasicDTO])
+@router.get("/", response_model=List[UserBasicDTO])
 def get_all_users(
     user_service: UserService = Depends(get_user_service),
-    current_user: User = Depends(get_authenticated_user),
+    # current_user: User = Depends(get_authenticated_user),
 ):
     return user_service.get_all_users()
 
