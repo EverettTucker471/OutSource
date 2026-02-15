@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart'; // Replaces dart:io for web support
+import 'package:flutter/foundation.dart'; // For kIsWeb check
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Import storage
 import 'main_navigation_screen.dart';
 
 class LoginSplashPage extends StatefulWidget {
@@ -12,6 +13,8 @@ class LoginSplashPage extends StatefulWidget {
 
 class _LoginSplashPageState extends State<LoginSplashPage> {
   final Dio _dio = Dio();
+  // Create the storage instance
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final _formKey = GlobalKey<FormState>();
   
   // State variables
@@ -79,7 +82,10 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
         // Login Success
         final token = response.data['access_token'] ?? response.data['token'];
         debugPrint("JWT: $token");
-        // TODO: Save token to SecureStorage here
+        
+        // Save token to SecureStorage
+        await _storage.write(key: 'jwt_token', value: token);
+        
         _navigateToHome();
       } else {
         // Handle 400/401 errors specifically

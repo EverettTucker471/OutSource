@@ -14,6 +14,8 @@ services:
       - "${MYSQL_PORT}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./create-schema.sql:/docker-entrypoint-initdb.d/1-setup.sql
+      - ./insert-info.sql:/docker-entrypoint-initdb.d/2-setup.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
