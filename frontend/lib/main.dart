@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-// import 'splash.dart';
+import 'home_page.dart';
+import 'schedule_page.dart';
+import 'friends_page.dart';
+import 'groups_page.dart';
+import 'profile_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,10 +15,21 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter 4-Panel App',
+      title: 'Flutter 5-Panel App',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        // Global AppBar theme for consistency
+        appBarTheme: const AppBarTheme(
+          toolbarHeight: 80, // Increased height to move titles downward
+          titleTextStyle: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black54,
+          ),
+          centerTitle: true,
+        ),
       ),
       home: const MainNavigationScreen(),
     );
@@ -31,10 +46,10 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
-  // List of widgets for each page
   final List<Widget> _pages = [
     const HomePage(),
     const SchedulePage(),
+    const FriendsPage(),
     const GroupsPage(),
     const ProfilePage(),
   ];
@@ -48,7 +63,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // IndexedStack keeps the state of all pages alive
       body: IndexedStack(
         index: _selectedIndex,
         children: _pages,
@@ -56,6 +70,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -68,109 +83,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             label: 'Schedule',
           ),
           NavigationDestination(
-            icon: Icon(Icons.group_outlined),
-            selectedIcon: Icon(Icons.group),
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Friends',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.group_work_outlined),
+            selectedIcon: Icon(Icons.group_work),
             label: 'Groups',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Profile',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// --- Individual Page Widgets ---
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.home, size: 100, color: Colors.deepPurple),
-            Text('Welcome back!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class SchedulePage extends StatelessWidget {
-  const SchedulePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Schedule')),
-      body: ListView.builder(
-        itemCount: 5,
-        itemBuilder: (context, index) {
-          return ListTile(
-            leading: CircleAvatar(child: Text('${index + 1}')),
-            title: Text('Event ${index + 1}'),
-            subtitle: const Text('10:00 AM - 11:30 AM'),
-            trailing: const Icon(Icons.chevron_right),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class GroupsPage extends StatelessWidget {
-  const GroupsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Groups')),
-      body: GridView.count(
-        crossAxisCount: 2,
-        padding: const EdgeInsets.all(16),
-        children: List.generate(4, (index) {
-          return Card(
-            child: Center(
-              child: Text('Group ${index + 1}', style: const TextStyle(fontSize: 18)),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings & Profile')),
-      body: Column(
-        children: [
-          const SizedBox(height: 20),
-          const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
-          const Text('John Doe', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('App Settings'),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('Logout', style: TextStyle(color: Colors.red)),
-            onTap: () {},
           ),
         ],
       ),
