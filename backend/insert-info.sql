@@ -1,8 +1,8 @@
 -- Insert sample users
 INSERT INTO users (username, password, name, preferences) VALUES
-('sunny_dev', 'password1', 'Sunny Singh', '["hiking", "outdoor activities", "sunny weather"]'),
-('weather_wiz', 'password2', 'Wendy Wizard', '["cycling", "photography", "clear skies"]'),
-('cloud_runner', 'password3', 'Chris Cloud', '["running", "nature walks", "morning activities"]');
+('sunny_dev', '$2a$12$QeXrujmpFmCZwXIsquEcR.a8fMhQzYSaOojqgAs6BHmQknvhsHMqO', 'Sunny Singh', '["hiking", "outdoor activities", "sunny weather"]'),
+('weather_wiz', '$2a$12$Lz91ZTWR5btfvzcEPN3e6OcClREda1cCrtVpt0SDU.aU/hmsHPj1a', 'Wendy Wizard', '["cycling", "photography", "clear skies"]'),
+('cloud_runner', '$2a$12$kvhIwNGEhx28GoCPnKnwlu7LPEfu1keTu.zcPJXllT2LUVW9edkiq', 'Chris Cloud', '["running", "nature walks", "morning activities"]');
 
 -- Insert sample circles (Sunny owns circle 1, Wendy owns circle 2)
 INSERT INTO circles (name, public, owner) VALUES
