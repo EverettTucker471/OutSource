@@ -11,11 +11,12 @@ from app.dtos.circle_dto import CircleResponseDTO
 from app.dependencies.auth_dependency import get_current_user as get_authenticated_user
 from app.models.user import User
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(tags=["users"])
 
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     user_repository = UserRepository(db)
+    return UserService(user_repository)
     friend_repository = FriendRepository(db)
     circle_repository = CircleRepository(db)
     return UserService(user_repository, friend_repository, circle_repository)

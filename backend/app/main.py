@@ -4,6 +4,8 @@ from app.controllers import user_controller, auth_controller, me_controller
 import time
 from sqlalchemy import text
 from app.database import engine
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(
     title="OutSource API",
@@ -11,6 +13,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    # This regex matches http://localhost:3000, :50165, :8080, etc.
+    allow_origin_regex="http://localhost:\d+", 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_controller.router, prefix="/auth")
+app.include_router(user_controller.router, prefix="/user")
 app.include_router(auth_controller.router)
 app.include_router(user_controller.router)
 app.include_router(me_controller.router)

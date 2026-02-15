@@ -4,6 +4,7 @@ import 'schedule_page.dart';
 import 'friends_page.dart';
 import 'groups_page.dart';
 import 'profile_page.dart';
+import 'splash.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,14 +16,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter 5-Panel App',
+      title: 'Aura',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
-        // Global AppBar theme for consistency
         appBarTheme: const AppBarTheme(
-          toolbarHeight: 80, // Increased height to move titles downward
+          toolbarHeight: 80,
           titleTextStyle: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -31,7 +31,8 @@ class MyApp extends StatelessWidget {
           centerTitle: true,
         ),
       ),
-      home: const MainNavigationScreen(),
+      // Set the Splash Page as the initial route
+      home: const LoginSplashPage(),
     );
   }
 }

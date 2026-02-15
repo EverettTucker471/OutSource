@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:dio/dio.dart';
+import 'main.dart'; // Import to access MainNavigationScreen
 
-// Main Entry Point for the Splash Page
 class LoginSplashPage extends StatefulWidget {
   const LoginSplashPage({super.key});
 
@@ -11,81 +10,83 @@ class LoginSplashPage extends StatefulWidget {
 }
 
 class _LoginSplashPageState extends State<LoginSplashPage> {
-  // CONFIGURATION: Ensure this matches your Web Client ID from the Google Cloud Console.
-  // Using a Web Client ID is mandatory for the 'serverAuthCode' exchange pattern.
-  static const String _serverClientId = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
+  // CONFIGURATION: Ensure this matches your backend IP/Domain
+  final String _baseUrl = "http://localhost:8000"; 
+
+  final Dio _dio = Dio();
+  final _formKey = GlobalKey<FormState>();
   
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: _serverClientId,
-    scopes: [
-      'email',
-      'https://www.googleapis.com/auth/calendar.readonly',
-    ],
-  );
-
+  // State variables
+  bool _isLogin = true; 
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
-  /// Initiates the Google Sign-In flow and retrieves a one-time server auth code.
-  Future<void> _handleSignIn() async {
+  // Controllers
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  /// Navigates to the main app dashboard upon successful auth
+  void _navigateToHome() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+    );
+  }
+
+  /// Handles JWT Login/Signup via Backend
+  Future<void> _handleAuth() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
-    try {
-      // 1. Trigger the native/web Google Sign-In overlay
-      final GoogleSignInAccount? user = await _googleSignIn.signIn();
-      
-      if (user != null) {
-        // 2. Retrieve the Server Auth Code (not the Access Token)
-        final String? serverAuthCode = user.serverAuthCode;
 
-        if (serverAuthCode != null) {
-          // 3. Forward the code to your FastAPI backend on AWS ECS
-          await _sendCodeToBackend(serverAuthCode);
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Account linked! Fetching calendar data..."),
-                backgroundColor: Colors.green,
-              ),
-            );
-            // Logic to navigate to your main app screen would go here
-          }
-        } else {
-          throw Exception("Failed to retrieve Server Auth Code from Google.");
+    // Endpoints as requested: /auth/login and /auth/signup
+    final String endpoint = _isLogin ? "/auth/login" : "/auth/signup";
+    
+    final Map<String, dynamic> data = {
+      "username": _usernameController.text.trim(),
+      "password": _passwordController.text.trim(),
+      "name": "New User"
+    };
+
+    try {
+      final response = await _dio.post(
+        "$_baseUrl$endpoint",
+        data: data,
+        options: Options(
+          headers: {"Content-Type": "application/json"},
+          validateStatus: (status) => status! < 500, // Handle 4xx manually
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!_isLogin) {
+            // If we just signed up, we don't have a token yet. 
+            // We must call the login logic now.
+            _isLogin = true; 
+            await _handleAuth(); 
+            return;
         }
+        final token = response.data['access_token'] ?? response.data['token'];
+        debugPrint("JWT: $token");
+        _navigateToHome();
       }
-    } catch (error) {
-      debugPrint("Sign-in error: $error");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Sign-in failed: $error")),
-        );
-      }
+    } on DioException catch (e) {
+      debugPrint("Auth Error: ${e.message}");
+      _showErrorSnackBar("Could not connect to server. Ensure backend is running.");
+    } catch (e) {
+      _showErrorSnackBar("An unexpected error occurred.");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// POSTs the auth code to the backend for exchange and persistence.
-  Future<void> _sendCodeToBackend(String code) async {
-    final dio = Dio();
-    
-    // Replace this with your actual ECS Load Balancer URL or local IP for testing
-    const String backendUrl = "http://localhost:8000/auth/google"; 
-    
-    try {
-      final response = await dio.post(
-        backendUrl, 
-        data: {"code": code},
-        options: Options(headers: {"Content-Type": "application/json"}),
-      );
-      
-      if (response.statusCode != 200) {
-        throw Exception("Backend rejected the auth code.");
-      }
-    } catch (e) {
-      debugPrint("Backend communication error: $e");
-      rethrow;
-    }
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message), 
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -102,83 +103,166 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Hero Icon / Logo
-              const CircleAvatar(
-                radius: 60,
-                backgroundColor: Colors.white10,
-                child: Icon(Icons.auto_awesome, size: 60, color: Colors.cyanAccent),
-              ),
-              const SizedBox(height: 32),
-              
-              // App Title
-              const Text(
-                "Aura Weather",
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Intelligent Schedule & Weather Sync",
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-              const SizedBox(height: 80),
-
-              // Sign In Button or Loading State
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _isLoading
-                    ? const Column(
-                        children: [
-                          CircularProgressIndicator(color: Colors.cyanAccent),
-                          SizedBox(height: 16),
-                          Text("Securing tokens...", style: TextStyle(color: Colors.white54)),
-                        ],
-                      )
-                    : ElevatedButton.icon(
-                        onPressed: _handleSignIn,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          elevation: 10,
-                        ),
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_Color_Icon.svg/1200px-Google_Color_Icon.svg.png',
-                          height: 24,
-                        ),
-                        label: const Text(
-                          "Continue with Google",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Branding
+                    const CircleAvatar(
+                      radius: 45,
+                      backgroundColor: Colors.white10,
+                      child: Icon(Icons.auto_awesome, size: 45, color: Colors.cyanAccent),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Aura",
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 2.0,
                       ),
+                    ),
+                    const Text(
+                      "Smart Weather & Scheduling",
+                      style: TextStyle(color: Colors.white54, fontSize: 14),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Auth Card
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          children: [
+                            Text(
+                              _isLogin ? "Welcome Back" : "Create Account",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            
+                            _buildTextField(
+                              controller: _usernameController,
+                              label: "Username",
+                              icon: Icons.person_outline,
+                              validator: (v) => v!.isEmpty ? "Enter username" : null,
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            _buildTextField(
+                              controller: _passwordController,
+                              label: "Password",
+                              icon: Icons.lock_outline,
+                              isPassword: true,
+                              validator: (v) => v!.length < 6 ? "Minimum 6 characters" : null,
+                            ),
+                            const SizedBox(height: 24),
+
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _handleAuth,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.cyanAccent,
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  elevation: 0,
+                                ),
+                                child: _isLoading 
+                                  ? const SizedBox(
+                                      height: 24, 
+                                      width: 24, 
+                                      child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)
+                                    )
+                                  : Text(
+                                      _isLogin ? "Login" : "Sign Up", 
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Toggle Login/Signup
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _isLogin = !_isLogin;
+                        // Optional: Clear fields when switching
+                        _usernameController.clear();
+                        _passwordController.clear();
+                      });
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                        children: [
+                          TextSpan(text: _isLogin ? "Don't have an account? " : "Already have an account? "),
+                          TextSpan(
+                            text: _isLogin ? "Sign Up" : "Login",
+                            style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              
-              const SizedBox(height: 40),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  "By signing in, you agree to allow Aura to read your calendar events to provide weather-optimized scheduling.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
+      ),
+    ));
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword && _obscurePassword,
+      style: const TextStyle(color: Colors.white),
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white60, fontSize: 14),
+        prefixIcon: Icon(icon, color: Colors.white60, size: 22),
+        suffixIcon: isPassword 
+          ? IconButton(
+              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white60, size: 20),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            )
+          : null,
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.05),
+        contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.white10)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.cyanAccent, width: 1)),
+        errorStyle: const TextStyle(color: Colors.redAccent),
       ),
     );
   }

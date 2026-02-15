@@ -5,9 +5,9 @@ from app.repositories.user_repository import UserRepository
 from app.dtos.auth_dto import TokenResponseDTO, SignupRequestDTO
 from app.dtos.user_dto import UserCreateDTO
 from app.utils.jwt_utils import create_access_token
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+from app.dtos.user_dto import UserCreateDTO, UserResponseDTO
+from app.repositories.user_repository import UserRepository
+from app.models.user import User  # <--- CRITICAL IMPORT: You need this to create the object
 
 class AuthService:
     """Service for authentication operations."""
@@ -17,23 +17,8 @@ class AuthService:
         self.user_service = user_service
 
     def authenticate_user(self, username: str, password: str) -> TokenResponseDTO:
-        """
-        Authenticate a user and generate a JWT token.
-
-        Args:
-            username: Username for authentication
-            password: Plain text password
-
-        Returns:
-            TokenResponseDTO with JWT access token
-
-        Raises:
-            HTTPException: 401 if credentials are invalid
-        """
-        # Get user from database
         user = self.user_repository.get_by_username(username)
 
-        # Use same error message for both cases to prevent username enumeration
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -43,13 +28,11 @@ class AuthService:
         if user is None:
             raise credentials_exception
 
-        # Verify password
-        if not pwd_context.verify(password, user.password):
+        # FIX 1: Direct comparison since you are NOT hashing passwords yet
+        if user.password != password:
             raise credentials_exception
 
-        # Create JWT token with user ID as subject
         access_token = create_access_token(data={"sub": str(user.id)})
-
         return TokenResponseDTO(access_token=access_token, token_type="bearer")
 
     def signup_user(self, signup_dto: SignupRequestDTO) -> TokenResponseDTO:

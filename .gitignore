@@ -49,3 +49,17 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# --- Flutter / Dart ---
+.dart_tool/
+.packages
+build/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+
+# --- Generated Plugin Registrants (All Platforms) ---
+**/GeneratedPluginRegistrant.swift
+**/generated_plugin_registrant.cc
+**/generated_plugin_registrant.h
+**/generated_plugins.cmake
+**/generated_plugin_registrant.dart

@@ -23,22 +23,6 @@ class UserService:
         self.friend_repository = friend_repository
         self.circle_repository = circle_repository
 
-    def create_user(self, user_dto: UserCreateDTO) -> UserResponseDTO:
-        if self.user_repository.exists_by_username(user_dto.username):
-            raise HTTPException(status_code=400, detail="Username already exists")
-
-        hashed_password = pwd_context.hash(user_dto.password)
-
-        user = User(
-            username=user_dto.username,
-            password=hashed_password,
-            name=user_dto.name,
-            preferences=user_dto.preferences
-        )
-
-        created_user = self.user_repository.create(user)
-        return UserResponseDTO.model_validate(created_user)
-
     def get_user_by_id(self, user_id: int) -> UserResponseDTO:
         user = self.user_repository.get_by_id(user_id)
         if not user:
