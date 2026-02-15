@@ -44,6 +44,7 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
     final Map<String, dynamic> data = {
       "username": _usernameController.text.trim(),
       "password": _passwordController.text.trim(),
+      "name": "New User"
     };
 
     try {
@@ -57,14 +58,16 @@ class _LoginSplashPageState extends State<LoginSplashPage> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Typically JWT is in 'access_token' or 'token'
+        if (!_isLogin) {
+            // If we just signed up, we don't have a token yet. 
+            // We must call the login logic now.
+            _isLogin = true; 
+            await _handleAuth(); 
+            return;
+        }
         final token = response.data['access_token'] ?? response.data['token'];
-        debugPrint("Authentication Successful. JWT: $token");
-        
+        debugPrint("JWT: $token");
         _navigateToHome();
-      } else {
-        final errorMsg = response.data['detail'] ?? "Authentication failed";
-        _showErrorSnackBar(errorMsg);
       }
     } on DioException catch (e) {
       debugPrint("Auth Error: ${e.message}");
