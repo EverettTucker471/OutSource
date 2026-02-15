@@ -12,6 +12,11 @@ class UserCreateDTO(BaseModel):
     inc_requests: Optional[List[int]] = Field(default_factory=list)
     out_requests: Optional[List[int]] = Field(default_factory=list)
 
+class UserBasicDTO(BaseModel):
+    id: int
+    username: str
+    name: str
+
 class UserResponseDTO(BaseModel):
     id: int
     username: str

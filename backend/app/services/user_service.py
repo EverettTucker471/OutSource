@@ -1,7 +1,8 @@
+from typing import List
 from passlib.context import CryptContext
 from app.repositories.user_repository import UserRepository
 from app.models.user import User
-from app.dtos.user_dto import UserCreateDTO, UserResponseDTO, UserUpdateDTO
+from app.dtos.user_dto import UserCreateDTO, UserResponseDTO, UserUpdateDTO, UserBasicDTO
 from typing import Optional
 from fastapi import HTTPException
 
@@ -43,6 +44,20 @@ class UserService:
         if not user:
             return None
         return UserResponseDTO.model_validate(user)
+
+    def get_all_users(self) -> List[UserBasicDTO]:
+        user_list = self.user_repository.get_all()
+
+        # For list endpoints, prefer returning [] instead of None
+        if not user_list:
+            return []
+
+        return_list: List[UserBasicDTO] = []
+        for user in user_list:
+            dto = UserBasicDTO.model_validate(user)
+            return_list.append(dto)
+        
+        return return_list
 
     def update_user(self, user_id: int, user_dto: UserUpdateDTO) -> UserResponseDTO:
         user = self.user_repository.get_by_id(user_id)
