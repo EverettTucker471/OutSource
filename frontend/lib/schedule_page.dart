@@ -1,9 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:intl/intl.dart'; // Ensure you have intl in pubspec.yaml
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:web/web.dart' as web;
 
 class EventResponseDTO {
   final int id;
@@ -108,6 +113,107 @@ class _SchedulePageState extends State<SchedulePage> {
   String _formatDateTime(DateTime dt) {
     // Format: Feb 15, 8:00 AM
     return DateFormat('MMM d, h:mm a').format(dt);
+  }
+
+  String _generateICalContent(EventResponseDTO event) {
+    // Format dates for iCal (YYYYMMDDTHHMMSSZ format)
+    String formatDateForICal(DateTime dt) {
+      return DateFormat('yyyyMMddTHHmmss').format(dt);
+    }
+
+    final startDt = formatDateForICal(event.startAt);
+    final endDt = formatDateForICal(event.endAt);
+    final now = formatDateForICal(DateTime.now());
+    
+    return '''BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//OutSource App//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:event-${event.id}-@outsource.app
+DTSTAMP:${now}Z
+DTSTART:$startDt
+DTEND:$endDt
+SUMMARY:${event.name}
+DESCRIPTION:${event.description ?? ''}
+STATUS:${event.state.toUpperCase()}
+END:VEVENT
+END:VCALENDAR''';
+  }
+
+  Future<void> _exportEventAsICal(EventResponseDTO event) async {
+    try {
+      final iCalContent = _generateICalContent(event);
+      final safeEventName = event.name
+          .replaceAll(RegExp(r'[<>:"/\\|?*]'), '')
+          .replaceAll(' ', '_');
+      final fileName = '${safeEventName}_${event.id}.ics';
+      
+      if (kIsWeb) {
+        // On web, create a download with proper MIME type
+        _downloadICalFileWeb(iCalContent, fileName);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Downloading $fileName')),
+          );
+        }
+      } else {
+        // On mobile/desktop, save to file and open with calendar app
+        final Directory directory = await getApplicationDocumentsDirectory();
+        final filePath = '${directory.path}/$fileName';
+
+        // Write the file
+        final file = File(filePath);
+        await file.writeAsString(iCalContent);
+
+        // Try to open the file with the default calendar app
+        final uri = Uri.file(filePath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Opening $fileName')),
+            );
+          }
+        } else {
+          // Fallback: just show the path
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Saved to: $filePath'),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Export error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to export event')),
+        );
+      }
+    }
+  }
+
+  void _downloadICalFileWeb(String content, String fileName) {
+    if (kIsWeb) {
+      // Create a blob with text/calendar MIME type
+      final bytes = utf8.encode(content);
+      final blob = web.Blob([bytes.toJS].toJS, web.BlobPropertyBag(type: 'text/calendar;charset=utf-8'));
+      final url = web.URL.createObjectURL(blob);
+      final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+        ..href = url
+        ..download = fileName
+        ..style.display = 'none';
+      
+      web.document.body?.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      web.URL.revokeObjectURL(url);
+    }
   }
 
   @override
@@ -218,6 +324,12 @@ class _SchedulePageState extends State<SchedulePage> {
                         ],
                       ],
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Export event',
+                    onPressed: () => _exportEventAsICal(event),
                   ),
                 ],
               ),
